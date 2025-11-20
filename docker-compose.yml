@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: audio-fingerprint-mongodb
+    restart: unless-stopped
+    ports:
+      - "27019:27017"
+    environment:
+      MONGO_INITDB_DATABASE: audio_fingerprint_db
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+    networks:
+      - audio-fingerprint-network
+
+  flask-app:
+    build: .
+    container_name: audio-fingerprint-app
+    restart: unless-stopped
+    ports:
+      - "5002:5002"
+    environment:
+      - MONGO_URI=mongodb://mongodb:27017/
+      - FLASK_ENV=development
+    depends_on:
+      - mongodb
+    networks:
+      - audio-fingerprint-network
+    volumes:
+      - ./backend:/app/backend
+      - ./frontend:/app/frontend
+
+volumes:
+  mongodb_data:
+    driver: local
+  mongodb_config:
+    driver: local
+
+networks:
+  audio-fingerprint-network:
+    driver: bridge

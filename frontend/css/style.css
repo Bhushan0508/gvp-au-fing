@@ -1,0 +1,486 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+}
+
+header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 30px;
+    text-align: center;
+}
+
+header h1 {
+    font-size: 2.5em;
+    margin-bottom: 10px;
+}
+
+header p {
+    font-size: 1.1em;
+    opacity: 0.9;
+}
+
+.tabs {
+    display: flex;
+    background: #f5f5f5;
+    border-bottom: 2px solid #ddd;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 15px 20px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 1em;
+    font-weight: 600;
+    color: #666;
+    transition: all 0.3s;
+}
+
+.tab-btn:hover {
+    background: #e0e0e0;
+}
+
+.tab-btn.active {
+    background: white;
+    color: #667eea;
+    border-bottom: 3px solid #667eea;
+}
+
+.tab-content {
+    display: none;
+    padding: 30px;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.upload-section, .segmentation-section, .action-section, .result-section {
+    margin-bottom: 30px;
+}
+
+h2, h3 {
+    color: #333;
+    margin-bottom: 15px;
+}
+
+input[type="file"] {
+    display: block;
+    width: 100%;
+    padding: 15px;
+    border: 2px dashed #667eea;
+    border-radius: 5px;
+    cursor: pointer;
+    background: #f9f9f9;
+    transition: all 0.3s;
+}
+
+input[type="file"]:hover {
+    background: #f0f0f0;
+    border-color: #764ba2;
+}
+
+.audio-preview {
+    margin-top: 20px;
+    padding: 20px;
+    background: #f5f5f5;
+    border-radius: 5px;
+}
+
+.audio-preview audio {
+    width: 100%;
+    margin-bottom: 15px;
+}
+
+.audio-info p {
+    margin: 5px 0;
+    color: #555;
+}
+
+.segmentation-controls {
+    padding: 20px;
+    background: #f9f9f9;
+    border-radius: 5px;
+}
+
+.segmentation-controls label {
+    display: block;
+    margin: 15px 0;
+    font-weight: 600;
+    color: #555;
+}
+
+.segmentation-controls input[type="radio"] {
+    margin-right: 10px;
+}
+
+.segmentation-controls input[type="number"] {
+    width: 80px;
+    padding: 5px 10px;
+    margin: 0 10px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+}
+
+.auto-chunk-options, .manual-selection-options {
+    margin-left: 30px;
+    margin-top: 10px;
+}
+
+.waveform-container {
+    width: 100%;
+    height: 150px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    margin: 15px 0;
+    position: relative;
+    overflow: hidden;
+}
+
+.waveform {
+    width: 100%;
+    height: 100%;
+}
+
+.region-controls {
+    display: flex;
+    gap: 10px;
+    margin: 10px 0;
+}
+
+.regions-list {
+    margin-top: 15px;
+}
+
+.region-item {
+    padding: 10px;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    margin: 5px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.region-item button {
+    padding: 5px 10px;
+    background: #e74c3c;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+.btn {
+    padding: 12px 30px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1em;
+    font-weight: 600;
+    transition: all 0.3s;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+}
+
+.btn-secondary {
+    background: #95a5a6;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #7f8c8d;
+}
+
+.btn-success {
+    background: #27ae60;
+    color: white;
+}
+
+.btn-success:hover {
+    background: #229954;
+}
+
+.progress {
+    margin-top: 20px;
+    padding: 20px;
+    background: #f5f5f5;
+    border-radius: 5px;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 10px;
+    background: #e0e0e0;
+    border-radius: 5px;
+    overflow: hidden;
+    position: relative;
+}
+
+.progress-bar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    animation: progress 1.5s ease-in-out infinite;
+}
+
+@keyframes progress {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(300%); }
+}
+
+.progress-text {
+    text-align: center;
+    margin-top: 10px;
+    color: #666;
+}
+
+.result-section {
+    padding: 20px;
+    background: #f9f9f9;
+    border-radius: 5px;
+    border-left: 4px solid #667eea;
+}
+
+.fingerprint-summary p {
+    margin: 10px 0;
+    color: #555;
+}
+
+.status-message {
+    margin-top: 15px;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.status-message.success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.status-message.error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.matches-list {
+    margin-top: 20px;
+}
+
+.match-item {
+    padding: 20px;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    margin: 15px 0;
+}
+
+.match-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.match-title {
+    font-size: 1.2em;
+    font-weight: 600;
+    color: #333;
+}
+
+.similarity-badge {
+    padding: 5px 15px;
+    border-radius: 20px;
+    font-weight: 600;
+    color: white;
+}
+
+.similarity-badge.high {
+    background: #27ae60;
+}
+
+.similarity-badge.medium {
+    background: #f39c12;
+}
+
+.similarity-badge.low {
+    background: #e74c3c;
+}
+
+.match-details {
+    margin-top: 15px;
+}
+
+.match-details p {
+    margin: 5px 0;
+    color: #555;
+}
+
+.segment-matches {
+    margin-top: 15px;
+}
+
+.segment-match {
+    padding: 10px;
+    background: #f5f5f5;
+    border-left: 3px solid #ddd;
+    margin: 5px 0;
+}
+
+.segment-match.matched {
+    border-left-color: #27ae60;
+    background: #d4edda;
+}
+
+.stored-list {
+    margin-top: 20px;
+}
+
+.stored-item {
+    padding: 20px;
+    background: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    margin: 15px 0;
+}
+
+.stored-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+}
+
+.stored-info {
+    flex: 1;
+}
+
+.stored-info h3 {
+    color: #667eea;
+    margin-bottom: 15px;
+}
+
+.stored-metadata {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+    margin: 15px 0;
+    padding: 15px;
+    background: white;
+    border-radius: 5px;
+}
+
+.stored-metadata p {
+    margin: 5px 0;
+    color: #555;
+    font-size: 0.9em;
+}
+
+.segment-details {
+    margin: 15px 0;
+    padding: 15px;
+    background: white;
+    border-radius: 5px;
+    border-left: 3px solid #667eea;
+}
+
+.segment-details ul {
+    margin: 10px 0;
+    padding-left: 25px;
+}
+
+.segment-details li {
+    margin: 5px 0;
+    color: #555;
+}
+
+.stored-audio-player {
+    margin: 15px 0;
+    padding: 15px;
+    background: white;
+    border-radius: 5px;
+}
+
+.stored-audio-player audio {
+    width: 100%;
+}
+
+.stored-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.view-details-btn {
+    padding: 8px 15px;
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.view-details-btn:hover {
+    background: #5568d3;
+}
+
+.delete-btn {
+    padding: 8px 15px;
+    background: #e74c3c;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.delete-btn:hover {
+    background: #c0392b;
+}
+
+.hidden {
+    display: none;
+}
+
+.no-data {
+    text-align: center;
+    padding: 40px;
+    color: #999;
+    font-size: 1.1em;
+}
