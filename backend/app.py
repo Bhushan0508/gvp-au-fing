@@ -328,24 +328,49 @@ def compare_segments(segments_to_verify, stored_segments, verification_methods=N
     for i in range(len(segments_to_verify)):
         verify_seg = segments_to_verify[i]
 
-        # Find best matching stored segment by time overlap
+        # Find best matching stored segment by fingerprint similarity
+        # This allows matching partial files regardless of time position
         best_match = None
         best_match_idx = -1
 
         for j, stored_seg in enumerate(stored_segments):
-            # Check time overlap
+            # First try time overlap for efficiency (same position in file)
             overlap_start = max(verify_seg['startTime'], stored_seg['startTime'])
             overlap_end = min(verify_seg['endTime'], stored_seg['endTime'])
             overlap = max(0, overlap_end - overlap_start)
 
-            if overlap > 0:
-                if best_match is None or overlap > best_match['overlap']:
+            # If significant time overlap exists, prefer it
+            if overlap > 2.0:  # More than 2 seconds overlap
+                if best_match is None or overlap > best_match.get('overlap', 0):
                     best_match = {
                         'overlap': overlap,
                         'stored_idx': j,
-                        'stored_seg': stored_seg
+                        'stored_seg': stored_seg,
+                        'match_type': 'time_overlap'
                     }
                     best_match_idx = j
+
+        # If no time overlap match found, try fingerprint-based matching
+        # This handles partial files extracted from different positions
+        if best_match is None:
+            for j, stored_seg in enumerate(stored_segments):
+                # Quick perceptual similarity check
+                if verify_seg.get('fingerprint') and stored_seg.get('fingerprint'):
+                    quick_similarity = compare_fingerprints(
+                        verify_seg['fingerprint'],
+                        stored_seg['fingerprint'],
+                        threshold=0.85
+                    )
+
+                    if quick_similarity['similarity'] > 0.85:
+                        if best_match is None or quick_similarity['similarity'] > best_match.get('similarity', 0):
+                            best_match = {
+                                'similarity': quick_similarity['similarity'],
+                                'stored_idx': j,
+                                'stored_seg': stored_seg,
+                                'match_type': 'fingerprint'
+                            }
+                            best_match_idx = j
 
         if best_match:
             stored_seg = best_match['stored_seg']
