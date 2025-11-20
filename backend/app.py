@@ -359,10 +359,11 @@ def compare_segments(segments_to_verify, stored_segments, verification_methods=N
                     quick_similarity = compare_fingerprints(
                         verify_seg['fingerprint'],
                         stored_seg['fingerprint'],
-                        threshold=0.85
+                        threshold=0.80  # Lower threshold for finding candidates
                     )
 
-                    if quick_similarity['similarity'] > 0.85:
+                    # Accept matches with 80%+ similarity as candidates
+                    if quick_similarity['similarity'] > 0.80:
                         if best_match is None or quick_similarity['similarity'] > best_match.get('similarity', 0):
                             best_match = {
                                 'similarity': quick_similarity['similarity'],
@@ -376,16 +377,24 @@ def compare_segments(segments_to_verify, stored_segments, verification_methods=N
             stored_seg = best_match['stored_seg']
 
             # Cryptographic hash comparison (exact match)
+            # Only apply crypto check for time-overlap matches (same file position)
+            # For extracted partial files, crypto will always fail due to re-encoding
             crypto_matched = False
             if verification_methods.get('cryptographic', True):
-                if verify_seg.get('cryptoHash') and stored_seg.get('cryptoHash'):
-                    crypto_matched = verify_seg['cryptoHash'] == stored_seg['cryptoHash']
-                    crypto_matches.append({
-                        'segmentIndex': i,
-                        'matched': crypto_matched,
-                        'startTime': verify_seg['startTime'],
-                        'endTime': verify_seg['endTime']
-                    })
+                # Only use crypto for time-overlap matches, not fingerprint-based matches
+                if best_match.get('match_type') == 'time_overlap':
+                    if verify_seg.get('cryptoHash') and stored_seg.get('cryptoHash'):
+                        crypto_matched = verify_seg['cryptoHash'] == stored_seg['cryptoHash']
+                        crypto_matches.append({
+                            'segmentIndex': i,
+                            'matched': crypto_matched,
+                            'startTime': verify_seg['startTime'],
+                            'endTime': verify_seg['endTime']
+                        })
+                else:
+                    # For fingerprint-based matches (partial files), skip crypto check
+                    # as it's not applicable due to re-encoding
+                    crypto_matched = None  # None means "not applicable"
 
             # Chromaprint comparison (industry-standard audio matching)
             chromaprint_matched = False
@@ -402,16 +411,22 @@ def compare_segments(segments_to_verify, stored_segments, verification_methods=N
             perceptual_matched = False
             similarity = {'similarity': 0.0, 'euclidean': 0, 'cosine': 0, 'pearson': 0}
             if verification_methods.get('perceptual', True):
+                # Use adaptive threshold based on match type
+                # For partial files (fingerprint matching), use lower threshold
+                # For complete files (time overlap), use higher threshold
+                adaptive_threshold = 0.88 if best_match.get('match_type') == 'fingerprint' else 0.95
+
                 similarity = compare_fingerprints(
                     verify_seg['fingerprint'],
                     stored_seg['fingerprint'],
-                    threshold=0.95
+                    threshold=adaptive_threshold
                 )
                 perceptual_matched = similarity['matched']
 
             # Determine overall match based on enabled methods
             methods_results = []
-            if verification_methods.get('cryptographic', True):
+            if verification_methods.get('cryptographic', True) and crypto_matched is not None:
+                # Only include crypto if it's applicable (time-overlap matches)
                 methods_results.append(crypto_matched)
             if verification_methods.get('perceptual', True):
                 methods_results.append(perceptual_matched)
