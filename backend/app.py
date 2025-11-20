@@ -397,7 +397,7 @@ def compare_segments(segments_to_verify, stored_segments, verification_methods=N
                     crypto_matched = None  # None means "not applicable"
 
             # Chromaprint comparison (industry-standard audio matching)
-            chromaprint_matched = False
+            chromaprint_matched = None  # None means "not available"
             chromaprint_similarity = 0.0
             if verification_methods.get('chromaprint', True):
                 if verify_seg.get('chromaprint') and stored_seg.get('chromaprint'):
@@ -406,6 +406,7 @@ def compare_segments(segments_to_verify, stored_segments, verification_methods=N
                         stored_seg['chromaprint']
                     )
                     chromaprint_matched = chromaprint_similarity >= 0.9  # 90% threshold for Chromaprint
+                # If chromaprint data is missing, keep as None (not applicable)
 
             # Perceptual fingerprint comparison
             perceptual_matched = False
@@ -430,7 +431,8 @@ def compare_segments(segments_to_verify, stored_segments, verification_methods=N
                 methods_results.append(crypto_matched)
             if verification_methods.get('perceptual', True):
                 methods_results.append(perceptual_matched)
-            if verification_methods.get('chromaprint', True):
+            if verification_methods.get('chromaprint', True) and chromaprint_matched is not None:
+                # Only include chromaprint if data is available
                 methods_results.append(chromaprint_matched)
 
             # Match if ANY enabled method passes
