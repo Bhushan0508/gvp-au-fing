@@ -120,7 +120,10 @@ function setupGenerateTab() {
 
             currentFingerprint = audioProcessor.generateFingerprint(currentAudioData);
 
-            if (segmentMode === 'auto') {
+            if (segmentMode === 'none') {
+                // No segmentation - only full file fingerprint
+                currentSegments = [];
+            } else if (segmentMode === 'auto') {
                 const chunkDuration = parseFloat(document.getElementById('chunkDuration').value);
                 currentSegments = await audioProcessor.generateSegments(currentAudioData, chunkDuration);
             } else {
@@ -413,7 +416,8 @@ function removeRegion(index) {
 
 function displayFingerprintResult() {
     document.getElementById('fpSize').textContent = currentFingerprint.length;
-    document.getElementById('segmentCount').textContent = currentSegments.length;
+    const segmentText = currentSegments.length === 0 ? 'None (Full file only)' : currentSegments.length;
+    document.getElementById('segmentCount').textContent = segmentText;
     document.getElementById('fingerprintResult').classList.remove('hidden');
     document.getElementById('storeStatus').innerHTML = '';
 }

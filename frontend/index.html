@@ -36,6 +36,14 @@
                 <h3>Segmentation Options</h3>
                 <div class="segmentation-controls">
                     <label>
+                        <input type="radio" name="segmentMode" value="none">
+                        No Segmentation (Full File Only)
+                    </label>
+                    <div class="no-segment-info">
+                        <p class="segment-note">Generate a single fingerprint for the entire audio file. Faster processing, but no partial file matching.</p>
+                    </div>
+
+                    <label>
                         <input type="radio" name="segmentMode" value="auto" checked>
                         Automatic Chunking
                     </label>
@@ -45,6 +53,7 @@
                             <input type="number" id="chunkDuration" value="5" min="1" max="60" step="1">
                             seconds
                         </label>
+                        <p class="segment-note">Divide audio into equal segments. Enables partial file matching and tamper detection.</p>
                     </div>
 
                     <label>
@@ -58,6 +67,7 @@
                             <button id="clearRegions" class="btn btn-secondary">Clear All</button>
                         </div>
                         <div id="regionsList" class="regions-list"></div>
+                        <p class="segment-note">Select specific time ranges to fingerprint.</p>
                     </div>
                 </div>
             </div>
