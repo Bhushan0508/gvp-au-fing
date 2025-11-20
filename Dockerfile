@@ -5,6 +5,8 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     libsndfile1 \
     ffmpeg \
+    libchromaprint-dev \
+    libchromaprint-tools \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .

@@ -42,7 +42,7 @@
                     <div class="auto-chunk-options">
                         <label>
                             Chunk Duration:
-                            <input type="number" id="chunkDuration" value="10" min="1" max="60" step="1">
+                            <input type="number" id="chunkDuration" value="5" min="1" max="60" step="1">
                             seconds
                         </label>
                     </div>
@@ -91,6 +91,34 @@
                         <p><strong>File:</strong> <span id="verifyFileName"></span></p>
                         <p><strong>Duration:</strong> <span id="verifyAudioDuration"></span></p>
                     </div>
+                </div>
+            </div>
+
+            <div class="verification-methods-section">
+                <h3>Verification Methods</h3>
+                <p class="methods-description">Select which verification methods to use (at least one required)</p>
+                <div class="verification-methods">
+                    <label class="method-option">
+                        <input type="checkbox" id="useCryptographic" checked>
+                        <div class="method-info">
+                            <strong>🔒 Cryptographic (SHA-256)</strong>
+                            <span class="method-desc">Exact byte-level matching - detects any modification</span>
+                        </div>
+                    </label>
+                    <label class="method-option">
+                        <input type="checkbox" id="usePerceptual" checked>
+                        <div class="method-info">
+                            <strong>🧠 Perceptual (86 Features)</strong>
+                            <span class="method-desc">Voice & content analysis - detects tampering</span>
+                        </div>
+                    </label>
+                    <label class="method-option">
+                        <input type="checkbox" id="useChromaprint" checked>
+                        <div class="method-info">
+                            <strong>🎵 Chromaprint</strong>
+                            <span class="method-desc">Industry standard - handles format variations</span>
+                        </div>
+                    </label>
                 </div>
             </div>
 

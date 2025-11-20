@@ -122,15 +122,16 @@ function setupGenerateTab() {
 
             if (segmentMode === 'auto') {
                 const chunkDuration = parseFloat(document.getElementById('chunkDuration').value);
-                currentSegments = audioProcessor.generateSegments(currentAudioData, chunkDuration);
+                currentSegments = await audioProcessor.generateSegments(currentAudioData, chunkDuration);
             } else {
-                currentSegments = manualRegions.map(region => {
+                const segmentPromises = manualRegions.map(region => {
                     return audioProcessor.generateCustomSegment(
                         currentAudioData,
                         region.start,
                         region.end
                     );
-                }).filter(s => s !== null);
+                });
+                currentSegments = (await Promise.all(segmentPromises)).filter(s => s !== null);
             }
 
             hideProgress('generateProgress');
@@ -225,18 +226,34 @@ function setupVerifyTab() {
             return;
         }
 
+        // Get selected verification methods
+        const useCryptographic = document.getElementById('useCryptographic').checked;
+        const usePerceptual = document.getElementById('usePerceptual').checked;
+        const useChromaprint = document.getElementById('useChromaprint').checked;
+
+        // Validate at least one method is selected
+        if (!useCryptographic && !usePerceptual && !useChromaprint) {
+            alert('Please select at least one verification method');
+            return;
+        }
+
         try {
             showProgress('verifyProgress');
 
             const fingerprint = audioProcessor.generateFingerprint(currentAudioData);
-            const segments = audioProcessor.generateSegments(currentAudioData, 10.0);
+            const segments = await audioProcessor.generateSegments(currentAudioData, 5.0);
 
             const response = await fetch(`${API_BASE}/fingerprint/verify`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     fullFingerprint: fingerprint,
-                    segments: segments
+                    segments: segments,
+                    verificationMethods: {
+                        cryptographic: useCryptographic,
+                        perceptual: usePerceptual,
+                        chromaprint: useChromaprint
+                    }
                 })
             });
 
@@ -410,23 +427,106 @@ function displayVerificationResults(matches) {
     } else {
         matches.forEach(match => {
             const similarity = (match.fullMatch.similarity * 100).toFixed(2);
-            const similarityClass = similarity >= 85 ? 'high' : similarity >= 60 ? 'medium' : 'low';
+            const similarityClass = similarity >= 95 ? 'high' : similarity >= 85 ? 'medium' : 'low';
 
             const matchItem = document.createElement('div');
             matchItem.className = 'match-item';
 
+            // Verification Summary
+            const vr = match.verificationResult || {};
+            let verificationSummary = '';
+            if (vr.totalSegments) {
+                const validPct = ((vr.validSegments / vr.totalSegments) * 100).toFixed(1);
+                const tamperedPct = ((vr.tamperedSegments / vr.totalSegments) * 100).toFixed(1);
+
+                let verificationStatus = '';
+                if (vr.tamperedSegments > 0) {
+                    verificationStatus = `<span class="status-badge tampered">⚠ TAMPERED CONTENT DETECTED</span>`;
+                } else if (vr.isPartialFile && vr.validSegments === vr.totalSegments) {
+                    verificationStatus = `<span class="status-badge partial-valid">✓ PARTIAL FILE - AUTHENTIC</span>`;
+                } else if (vr.validSegments === vr.totalSegments) {
+                    verificationStatus = `<span class="status-badge verified">✓ FULLY VERIFIED - AUTHENTIC</span>`;
+                }
+
+                verificationSummary = `
+                    <div class="verification-summary">
+                        <h4>Verification Summary</h4>
+                        ${verificationStatus}
+                        <div class="verification-stats">
+                            <p><strong>Total Segments:</strong> ${vr.totalSegments}</p>
+                            <p><strong>Valid Segments:</strong> ${vr.validSegments} (${validPct}%)</p>
+                            <p><strong>Tampered Segments:</strong> ${vr.tamperedSegments} (${tamperedPct}%)</p>
+                            <p><strong>Average Similarity:</strong> ${(vr.avgSimilarity * 100).toFixed(2)}%</p>
+                            ${vr.isPartialFile ? '<p><strong>Type:</strong> Partial Audio File</p>' : ''}
+                            ${vr.isComplete ? '<p><strong>Type:</strong> Complete Audio File</p>' : ''}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Tampered Regions
+            let tamperedRegionsHtml = '';
+            if (vr.tamperedRegions && vr.tamperedRegions.length > 0) {
+                tamperedRegionsHtml = '<div class="tampered-regions"><h4>⚠ Tampered Regions Detected:</h4><ul>';
+                vr.tamperedRegions.forEach(region => {
+                    tamperedRegionsHtml += `
+                        <li class="tampered-region">
+                            <strong>Time:</strong> ${region.startTime.toFixed(2)}s - ${region.endTime.toFixed(2)}s
+                            | <strong>Similarity:</strong> ${(region.similarity * 100).toFixed(2)}%
+                        </li>
+                    `;
+                });
+                tamperedRegionsHtml += '</ul></div>';
+            }
+
+            // Valid Regions
+            let validRegionsHtml = '';
+            if (vr.validRegions && vr.validRegions.length > 0) {
+                validRegionsHtml = '<div class="valid-regions"><h4>✓ Verified Regions:</h4><ul>';
+                vr.validRegions.forEach(region => {
+                    const exactMatch = region.exactMatch ? '(Exact Match)' : '(Perceptual Match)';
+                    validRegionsHtml += `
+                        <li class="valid-region">
+                            <strong>Time:</strong> ${region.startTime.toFixed(2)}s - ${region.endTime.toFixed(2)}s ${exactMatch}
+                        </li>
+                    `;
+                });
+                validRegionsHtml += '</ul></div>';
+            }
+
+            // Detailed Segment Analysis
             let segmentsHtml = '';
             if (match.segmentMatches && match.segmentMatches.length > 0) {
-                segmentsHtml = '<div class="segment-matches"><h4>Segment Analysis:</h4>';
+                segmentsHtml = '<div class="segment-matches"><h4>Detailed Segment Analysis:</h4>';
                 match.segmentMatches.forEach(seg => {
-                    const segClass = seg.matched ? 'matched' : '';
+                    let segClass = seg.matched ? 'matched' : '';
+                    if (seg.isTampered) segClass = 'tampered';
+
                     const segSimilarity = (seg.similarity * 100).toFixed(2);
+                    const cryptoStatus = seg.cryptoMatched ? '🔒 Exact' : '🔓 Modified';
+
+                    // Chromaprint status
+                    const chromaprintSimilarity = seg.chromaprintSimilarity ? (seg.chromaprintSimilarity * 100).toFixed(2) : 'N/A';
+                    const chromaprintStatus = seg.chromaprintMatched ? '🎵 Match' : '🎵 No Match';
+                    const hasChromaprint = seg.chromaprintSimilarity !== undefined;
+
                     segmentsHtml += `
                         <div class="segment-match ${segClass}">
-                            <strong>Segment ${seg.segmentIndex + 1}:</strong>
-                            ${seg.startTime.toFixed(2)}s - ${seg.endTime.toFixed(2)}s
-                            | Similarity: ${segSimilarity}%
-                            ${seg.matched ? ' ✓ MATCH' : ' ✗ No match'}
+                            <div class="segment-info">
+                                <strong>Segment ${seg.segmentIndex + 1}:</strong>
+                                ${seg.startTime.toFixed(2)}s - ${seg.endTime.toFixed(2)}s
+                            </div>
+                            <div class="segment-metrics">
+                                <span><strong>Perceptual:</strong> ${segSimilarity}%</span>
+                                <span><strong>Cryptographic:</strong> ${cryptoStatus}</span>
+                                ${hasChromaprint ? `<span><strong>Chromaprint:</strong> ${chromaprintSimilarity}% ${seg.chromaprintMatched ? '✓' : '✗'}</span>` : ''}
+                            </div>
+                            <div class="segment-status">
+                                ${seg.cryptoMatched ? '✓ EXACT MATCH' :
+                                  seg.chromaprintMatched ? '✓ CHROMAPRINT MATCH' :
+                                  seg.matched ? '✓ PERCEPTUAL MATCH' :
+                                  seg.isTampered ? '✗ TAMPERED' : '✗ NO MATCH'}
+                            </div>
                         </div>
                     `;
                 });
@@ -436,13 +536,15 @@ function displayVerificationResults(matches) {
             matchItem.innerHTML = `
                 <div class="match-header">
                     <div class="match-title">${match.filename}</div>
-                    <div class="similarity-badge ${similarityClass}">${similarity}% Match</div>
+                    <div class="similarity-badge ${similarityClass}">${similarity}%</div>
                 </div>
                 <div class="match-details">
                     <p><strong>Stored:</strong> ${new Date(match.createdAt).toLocaleString()}</p>
-                    <p><strong>Full Audio Match:</strong> ${(match.fullMatch.similarity * 100).toFixed(2)}%</p>
-                    <p><strong>Verification:</strong> ${match.fullMatch.matched ? '✓ VERIFIED' : '✗ FAILED'}</p>
+                    <p><strong>Overall Similarity:</strong> ${similarity}%</p>
                 </div>
+                ${verificationSummary}
+                ${tamperedRegionsHtml}
+                ${validRegionsHtml}
                 ${segmentsHtml}
             `;
 

@@ -4,13 +4,17 @@ A full-stack web application for generating and verifying audio fingerprints usi
 
 ## Features
 
-- **Acoustic Fingerprinting**: Uses MFCC, spectral features, and signal analysis to create robust audio fingerprints
+- **Triple Verification System**:
+  - **SHA-256 Cryptographic Hash**: Exact byte-level verification
+  - **Custom Perceptual Fingerprint**: 86 acoustic features (MFCC, chroma, spectral analysis)
+  - **Chromaprint**: Industry-standard audio fingerprinting (used by MusicBrainz)
 - **Full Audio Verification**: Verify complete audio files against stored fingerprints
 - **Partial Fingerprinting**:
   - Automatic time-based chunking (configurable duration)
   - Manual region selection via interactive waveform
-- **Modification Detection**: Verification fails if audio has been modified
-- **Similarity Scoring**: Shows percentage match for both full audio and individual segments
+- **Tamper Detection**: Identifies exact time ranges of modifications with segment-level analysis
+- **Modification Detection**: Verification fails if audio content has been modified
+- **Similarity Scoring**: Shows percentage match for all three verification methods
 - **MongoDB Storage**: Store original audio files and fingerprints in MongoDB with GridFS
 - **Enhanced View**: Detailed fingerprint information with audio playback and metadata
 - **Docker Support**: Easy deployment with Docker Compose

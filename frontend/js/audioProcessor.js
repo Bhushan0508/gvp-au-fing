@@ -5,6 +5,14 @@ class AudioProcessor {
         this.sampleRate = 22050;
     }
 
+    async computeSHA256(audioData) {
+        const buffer = new Float32Array(audioData).buffer;
+        const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        return hashHex;
+    }
+
     async loadAudioFile(file) {
         if (!this.audioContext) {
             this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -238,30 +246,33 @@ class AudioProcessor {
         return fingerprint.map(val => val / (maxAbs + 1e-10));
     }
 
-    generateSegments(audioData, segmentDuration = 10.0) {
+    async generateSegments(audioData, segmentDuration = 5.0) {
         const samplesPerSegment = Math.floor(segmentDuration * this.sampleRate);
         const segments = [];
 
         for (let i = 0; i < audioData.length; i += samplesPerSegment) {
             const segmentData = audioData.slice(i, i + samplesPerSegment);
 
-            if (segmentData.length < samplesPerSegment * 0.5) {
+            if (segmentData.length < samplesPerSegment * 0.3) {
                 continue;
             }
 
             const fingerprint = this.generateFingerprint(segmentData);
+            const cryptoHash = await this.computeSHA256(segmentData);
 
             segments.push({
                 startTime: i / this.sampleRate,
                 endTime: Math.min((i + samplesPerSegment) / this.sampleRate, audioData.length / this.sampleRate),
-                fingerprint: fingerprint
+                fingerprint: fingerprint,
+                cryptoHash: cryptoHash,
+                duration: segmentData.length / this.sampleRate
             });
         }
 
         return segments;
     }
 
-    generateCustomSegment(audioData, startTime, endTime) {
+    async generateCustomSegment(audioData, startTime, endTime) {
         const startSample = Math.floor(startTime * this.sampleRate);
         const endSample = Math.floor(endTime * this.sampleRate);
 
@@ -272,11 +283,14 @@ class AudioProcessor {
         }
 
         const fingerprint = this.generateFingerprint(segmentData);
+        const cryptoHash = await this.computeSHA256(segmentData);
 
         return {
             startTime,
             endTime,
-            fingerprint
+            fingerprint,
+            cryptoHash: cryptoHash,
+            duration: segmentData.length / this.sampleRate
         };
     }
 

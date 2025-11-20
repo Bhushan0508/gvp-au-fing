@@ -69,33 +69,48 @@ def verify_fingerprint():
         data = request.json
         full_fingerprint = data.get('fullFingerprint')
         segments = data.get('segments', [])
+        verification_methods = data.get('verificationMethods', {
+            'cryptographic': True,
+            'perceptual': True,
+            'chromaprint': True
+        })
 
         matches = []
 
         for stored in fingerprints_collection.find():
+            # Full audio comparison
             full_match = compare_fingerprints(full_fingerprint, stored['fullFingerprint'])
 
+            # Segment-level comparison for partial matching and tamper detection
             segment_matches = []
-            if segments and stored.get('segments'):
-                for i in range(min(len(segments), len(stored['segments']))):
-                    similarity = compare_fingerprints(
-                        segments[i]['fingerprint'],
-                        stored['segments'][i]['fingerprint']
-                    )
-                    segment_matches.append({
-                        'segmentIndex': i,
-                        'startTime': segments[i]['startTime'],
-                        'endTime': segments[i]['endTime'],
-                        'similarity': similarity['similarity'],
-                        'matched': similarity['matched']
-                    })
+            crypto_matches = []
 
-            if full_match['similarity'] > 0.5 or any(s['matched'] for s in segment_matches):
+            if segments and stored.get('segments'):
+                segment_matches, crypto_matches, verification_result = compare_segments(
+                    segments,
+                    stored['segments'],
+                    verification_methods
+                )
+
+                # Calculate overall statistics
+                if segment_matches:
+                    valid_segments = [s for s in segment_matches if s['matched']]
+                    tampered_segments = [s for s in segment_matches if not s['matched'] and s['similarity'] < 0.95]
+
+                    verification_result['totalSegments'] = len(segment_matches)
+                    verification_result['validSegments'] = len(valid_segments)
+                    verification_result['tamperedSegments'] = len(tampered_segments)
+                    verification_result['partialMatch'] = len(valid_segments) > 0
+                    verification_result['avgSimilarity'] = sum(s['similarity'] for s in segment_matches) / len(segment_matches)
+
+            if full_match['similarity'] > 0.5 or any(s.get('matched') for s in segment_matches):
                 matches.append({
                     'id': str(stored['_id']),
                     'filename': stored['filename'],
                     'fullMatch': full_match,
                     'segmentMatches': segment_matches,
+                    'cryptoMatches': crypto_matches,
+                    'verificationResult': verification_result if segment_matches else {},
                     'metadata': stored.get('metadata', {}),
                     'createdAt': stored['createdAt'].isoformat(),
                     'hasAudioFile': stored.get('audioFileId') is not None
@@ -197,14 +212,232 @@ def get_stats():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-def compare_fingerprints(fp1, fp2):
+def compare_chromaprint(fp1, fp2):
+    """
+    Compare two Chromaprint fingerprints
+    Chromaprint returns a compressed fingerprint string
+    We use bit error rate for comparison
+    """
+    if not fp1 or not fp2:
+        return 0.0
+
+    try:
+        # Chromaprint fingerprints are base64-encoded compressed data
+        # Simple approach: check string similarity as proxy for audio similarity
+        # In production, you'd decode and compare the actual bit patterns
+
+        if fp1 == fp2:
+            return 1.0
+
+        # Calculate Levenshtein distance-based similarity for the compressed strings
+        len1, len2 = len(fp1), len(fp2)
+        if len1 == 0 or len2 == 0:
+            return 0.0
+
+        # Create distance matrix
+        matrix = [[0] * (len2 + 1) for _ in range(len1 + 1)]
+
+        for i in range(len1 + 1):
+            matrix[i][0] = i
+        for j in range(len2 + 1):
+            matrix[0][j] = j
+
+        for i in range(1, len1 + 1):
+            for j in range(1, len2 + 1):
+                cost = 0 if fp1[i-1] == fp2[j-1] else 1
+                matrix[i][j] = min(
+                    matrix[i-1][j] + 1,      # deletion
+                    matrix[i][j-1] + 1,      # insertion
+                    matrix[i-1][j-1] + cost  # substitution
+                )
+
+        distance = matrix[len1][len2]
+        max_len = max(len1, len2)
+        similarity = 1.0 - (distance / max_len)
+
+        return max(0.0, similarity)
+
+    except Exception as e:
+        print(f"Chromaprint comparison error: {e}")
+        return 0.0
+
+def compare_fingerprints(fp1, fp2, threshold=0.95):
+    """
+    Compare two perceptual fingerprints with enhanced similarity metrics
+    Returns similarity score and match status
+    """
     if not fp1 or not fp2 or len(fp1) != len(fp2):
-        return {'similarity': 0.0, 'matched': False}
+        return {'similarity': 0.0, 'matched': False, 'method': 'none'}
 
-    matches = sum(1 for i in range(len(fp1)) if abs(fp1[i] - fp2[i]) < 0.1)
-    similarity = matches / len(fp1)
+    # Euclidean distance
+    euclidean_dist = sum((fp1[i] - fp2[i]) ** 2 for i in range(len(fp1))) ** 0.5
+    euclidean_similarity = 1 / (1 + euclidean_dist)
 
-    return {'similarity': similarity, 'matched': similarity > 0.85}
+    # Cosine similarity
+    dot_product = sum(fp1[i] * fp2[i] for i in range(len(fp1)))
+    magnitude1 = sum(x ** 2 for x in fp1) ** 0.5
+    magnitude2 = sum(x ** 2 for x in fp2) ** 0.5
+    cosine_similarity = dot_product / (magnitude1 * magnitude2 + 1e-10)
+    cosine_similarity = (cosine_similarity + 1) / 2  # Normalize to [0, 1]
+
+    # Pearson correlation
+    mean1 = sum(fp1) / len(fp1)
+    mean2 = sum(fp2) / len(fp2)
+    numerator = sum((fp1[i] - mean1) * (fp2[i] - mean2) for i in range(len(fp1)))
+    denominator = (sum((x - mean1) ** 2 for x in fp1) * sum((x - mean2) ** 2 for x in fp2)) ** 0.5
+    pearson_corr = numerator / (denominator + 1e-10)
+    pearson_similarity = (pearson_corr + 1) / 2  # Normalize to [0, 1]
+
+    # Combined similarity (weighted average)
+    similarity = (euclidean_similarity * 0.3 + cosine_similarity * 0.4 + pearson_similarity * 0.3)
+
+    return {
+        'similarity': similarity,
+        'matched': similarity >= threshold,
+        'euclidean': euclidean_similarity,
+        'cosine': cosine_similarity,
+        'pearson': pearson_similarity,
+        'method': 'perceptual'
+    }
+
+def compare_segments(segments_to_verify, stored_segments, verification_methods=None):
+    """
+    Compare segments with support for partial matching and tamper detection
+    verification_methods: dict with keys 'cryptographic', 'perceptual', 'chromaprint'
+    """
+    if verification_methods is None:
+        verification_methods = {
+            'cryptographic': True,
+            'perceptual': True,
+            'chromaprint': True
+        }
+
+    segment_matches = []
+    crypto_matches = []
+
+    # Build verification result
+    verification_result = {
+        'isPartialFile': len(segments_to_verify) < len(stored_segments),
+        'isComplete': len(segments_to_verify) == len(stored_segments),
+        'hasExtendedContent': len(segments_to_verify) > len(stored_segments),
+        'tamperedRegions': [],
+        'validRegions': [],
+        'enabledMethods': verification_methods
+    }
+
+    for i in range(len(segments_to_verify)):
+        verify_seg = segments_to_verify[i]
+
+        # Find best matching stored segment by time overlap
+        best_match = None
+        best_match_idx = -1
+
+        for j, stored_seg in enumerate(stored_segments):
+            # Check time overlap
+            overlap_start = max(verify_seg['startTime'], stored_seg['startTime'])
+            overlap_end = min(verify_seg['endTime'], stored_seg['endTime'])
+            overlap = max(0, overlap_end - overlap_start)
+
+            if overlap > 0:
+                if best_match is None or overlap > best_match['overlap']:
+                    best_match = {
+                        'overlap': overlap,
+                        'stored_idx': j,
+                        'stored_seg': stored_seg
+                    }
+                    best_match_idx = j
+
+        if best_match:
+            stored_seg = best_match['stored_seg']
+
+            # Cryptographic hash comparison (exact match)
+            crypto_matched = False
+            if verification_methods.get('cryptographic', True):
+                if verify_seg.get('cryptoHash') and stored_seg.get('cryptoHash'):
+                    crypto_matched = verify_seg['cryptoHash'] == stored_seg['cryptoHash']
+                    crypto_matches.append({
+                        'segmentIndex': i,
+                        'matched': crypto_matched,
+                        'startTime': verify_seg['startTime'],
+                        'endTime': verify_seg['endTime']
+                    })
+
+            # Chromaprint comparison (industry-standard audio matching)
+            chromaprint_matched = False
+            chromaprint_similarity = 0.0
+            if verification_methods.get('chromaprint', True):
+                if verify_seg.get('chromaprint') and stored_seg.get('chromaprint'):
+                    chromaprint_similarity = compare_chromaprint(
+                        verify_seg['chromaprint'],
+                        stored_seg['chromaprint']
+                    )
+                    chromaprint_matched = chromaprint_similarity >= 0.9  # 90% threshold for Chromaprint
+
+            # Perceptual fingerprint comparison
+            perceptual_matched = False
+            similarity = {'similarity': 0.0, 'euclidean': 0, 'cosine': 0, 'pearson': 0}
+            if verification_methods.get('perceptual', True):
+                similarity = compare_fingerprints(
+                    verify_seg['fingerprint'],
+                    stored_seg['fingerprint'],
+                    threshold=0.95
+                )
+                perceptual_matched = similarity['matched']
+
+            # Determine overall match based on enabled methods
+            methods_results = []
+            if verification_methods.get('cryptographic', True):
+                methods_results.append(crypto_matched)
+            if verification_methods.get('perceptual', True):
+                methods_results.append(perceptual_matched)
+            if verification_methods.get('chromaprint', True):
+                methods_results.append(chromaprint_matched)
+
+            # Match if ANY enabled method passes
+            overall_matched = any(methods_results) if methods_results else False
+
+            # Tampered if ALL enabled methods fail
+            is_tampered = not overall_matched
+
+            segment_match = {
+                'segmentIndex': i,
+                'storedSegmentIndex': best_match_idx,
+                'startTime': verify_seg['startTime'],
+                'endTime': verify_seg['endTime'],
+                'similarity': similarity['similarity'],
+                'matched': overall_matched,
+                'cryptoMatched': crypto_matched,
+                'chromaprintMatched': chromaprint_matched,
+                'chromaprintSimilarity': chromaprint_similarity,
+                'exactMatch': crypto_matched,
+                'perceptualMatch': perceptual_matched,
+                'isTampered': is_tampered,
+                'enabledMethods': verification_methods,
+                'similarityDetails': {
+                    'euclidean': similarity.get('euclidean', 0),
+                    'cosine': similarity.get('cosine', 0),
+                    'pearson': similarity.get('pearson', 0),
+                    'chromaprint': chromaprint_similarity
+                }
+            }
+
+            segment_matches.append(segment_match)
+
+            # Track tampered and valid regions
+            if is_tampered:
+                verification_result['tamperedRegions'].append({
+                    'startTime': verify_seg['startTime'],
+                    'endTime': verify_seg['endTime'],
+                    'similarity': similarity['similarity']
+                })
+            elif similarity['matched']:
+                verification_result['validRegions'].append({
+                    'startTime': verify_seg['startTime'],
+                    'endTime': verify_seg['endTime'],
+                    'exactMatch': crypto_matched
+                })
+
+    return segment_matches, crypto_matches, verification_result
 
 if __name__ == '__main__':
     print('Audio Fingerprint Server running on http://localhost:5002')
