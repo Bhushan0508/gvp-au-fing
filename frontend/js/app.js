@@ -432,6 +432,78 @@ function displayVerificationResults(matches) {
             const matchItem = document.createElement('div');
             matchItem.className = 'match-item';
 
+            // Calculate method statistics
+            let cryptoCount = 0, cryptoTotal = 0;
+            let perceptualCount = 0, perceptualTotal = 0;
+            let chromaprintCount = 0, chromaprintTotal = 0;
+
+            if (match.segmentMatches) {
+                match.segmentMatches.forEach(seg => {
+                    // Count cryptographic matches
+                    if (seg.cryptoMatched !== null && seg.cryptoMatched !== undefined) {
+                        cryptoTotal++;
+                        if (seg.cryptoMatched === true) cryptoCount++;
+                    }
+                    // Count perceptual matches
+                    if (seg.perceptualMatch !== undefined) {
+                        perceptualTotal++;
+                        if (seg.perceptualMatch) perceptualCount++;
+                    }
+                    // Count chromaprint matches
+                    if (seg.chromaprintMatched !== null && seg.chromaprintMatched !== undefined) {
+                        chromaprintTotal++;
+                        if (seg.chromaprintMatched) chromaprintCount++;
+                    }
+                });
+            }
+
+            // Method breakdown HTML
+            let methodsBreakdown = '';
+            if (cryptoTotal > 0 || perceptualTotal > 0 || chromaprintTotal > 0) {
+                methodsBreakdown = '<div class="methods-breakdown"><h4>🔍 Verification Methods Results:</h4>';
+
+                if (cryptoTotal > 0) {
+                    const cryptoPct = ((cryptoCount / cryptoTotal) * 100).toFixed(1);
+                    const cryptoStatus = cryptoCount === cryptoTotal ? '✓' : cryptoCount > 0 ? '⚠' : '✗';
+                    const cryptoClass = cryptoCount === cryptoTotal ? 'method-pass' : cryptoCount > 0 ? 'method-partial' : 'method-fail';
+                    methodsBreakdown += `
+                        <div class="method-result ${cryptoClass}">
+                            <strong>${cryptoStatus} Cryptographic (SHA-256):</strong>
+                            ${cryptoCount}/${cryptoTotal} segments (${cryptoPct}%)
+                            <span class="method-note">Exact byte-level matching</span>
+                        </div>
+                    `;
+                }
+
+                if (perceptualTotal > 0) {
+                    const perceptualPct = ((perceptualCount / perceptualTotal) * 100).toFixed(1);
+                    const perceptualStatus = perceptualCount === perceptualTotal ? '✓' : perceptualCount > 0 ? '⚠' : '✗';
+                    const perceptualClass = perceptualCount === perceptualTotal ? 'method-pass' : perceptualCount > 0 ? 'method-partial' : 'method-fail';
+                    methodsBreakdown += `
+                        <div class="method-result ${perceptualClass}">
+                            <strong>${perceptualStatus} Perceptual (86 Features):</strong>
+                            ${perceptualCount}/${perceptualTotal} segments (${perceptualPct}%)
+                            <span class="method-note">Audio content analysis</span>
+                        </div>
+                    `;
+                }
+
+                if (chromaprintTotal > 0) {
+                    const chromaprintPct = ((chromaprintCount / chromaprintTotal) * 100).toFixed(1);
+                    const chromaprintStatus = chromaprintCount === chromaprintTotal ? '✓' : chromaprintCount > 0 ? '⚠' : '✗';
+                    const chromaprintClass = chromaprintCount === chromaprintTotal ? 'method-pass' : chromaprintCount > 0 ? 'method-partial' : 'method-fail';
+                    methodsBreakdown += `
+                        <div class="method-result ${chromaprintClass}">
+                            <strong>${chromaprintStatus} Chromaprint:</strong>
+                            ${chromaprintCount}/${chromaprintTotal} segments (${chromaprintPct}%)
+                            <span class="method-note">Industry-standard audio fingerprint</span>
+                        </div>
+                    `;
+                }
+
+                methodsBreakdown += '</div>';
+            }
+
             // Verification Summary
             const vr = match.verificationResult || {};
             let verificationSummary = '';
@@ -460,6 +532,7 @@ function displayVerificationResults(matches) {
                             ${vr.isPartialFile ? '<p><strong>Type:</strong> Partial Audio File</p>' : ''}
                             ${vr.isComplete ? '<p><strong>Type:</strong> Complete Audio File</p>' : ''}
                         </div>
+                        ${methodsBreakdown}
                     </div>
                 `;
             }

@@ -687,3 +687,66 @@ input[type="file"]:hover {
     color: #999;
     font-size: 1.1em;
 }
+
+/* Verification Methods Breakdown */
+.methods-breakdown {
+    margin: 20px 0;
+    padding: 20px;
+    background: white;
+    border-radius: 8px;
+    border: 2px solid #e0e0e0;
+}
+
+.methods-breakdown h4 {
+    margin-bottom: 15px;
+    color: #333;
+    font-size: 1.1em;
+}
+
+.method-result {
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 6px;
+    border-left: 5px solid #ddd;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.method-result strong {
+    font-size: 1em;
+    display: block;
+}
+
+.method-note {
+    font-size: 0.85em;
+    color: #777;
+    font-style: italic;
+}
+
+.method-result.method-pass {
+    background: #d4edda;
+    border-left-color: #27ae60;
+}
+
+.method-result.method-pass strong {
+    color: #155724;
+}
+
+.method-result.method-partial {
+    background: #fff3cd;
+    border-left-color: #f39c12;
+}
+
+.method-result.method-partial strong {
+    color: #856404;
+}
+
+.method-result.method-fail {
+    background: #f8d7da;
+    border-left-color: #e74c3c;
+}
+
+.method-result.method-fail strong {
+    color: #721c24;
+}
