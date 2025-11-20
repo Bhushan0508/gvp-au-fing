@@ -379,7 +379,7 @@ def compare_segments(segments_to_verify, stored_segments, verification_methods=N
             # Cryptographic hash comparison (exact match)
             # Only apply crypto check for time-overlap matches (same file position)
             # For extracted partial files, crypto will always fail due to re-encoding
-            crypto_matched = False
+            crypto_matched = None  # Default: not applicable
             if verification_methods.get('cryptographic', True):
                 # Only use crypto for time-overlap matches, not fingerprint-based matches
                 if best_match.get('match_type') == 'time_overlap':
@@ -391,10 +391,7 @@ def compare_segments(segments_to_verify, stored_segments, verification_methods=N
                             'startTime': verify_seg['startTime'],
                             'endTime': verify_seg['endTime']
                         })
-                else:
-                    # For fingerprint-based matches (partial files), skip crypto check
-                    # as it's not applicable due to re-encoding
-                    crypto_matched = None  # None means "not applicable"
+                # If not time_overlap, crypto_matched stays None (not applicable)
 
             # Chromaprint comparison (industry-standard audio matching)
             chromaprint_matched = None  # None means "not available"
@@ -413,9 +410,11 @@ def compare_segments(segments_to_verify, stored_segments, verification_methods=N
             similarity = {'similarity': 0.0, 'euclidean': 0, 'cosine': 0, 'pearson': 0}
             if verification_methods.get('perceptual', True):
                 # Use adaptive threshold based on match type
-                # For partial files (fingerprint matching), use lower threshold
-                # For complete files (time overlap), use higher threshold
-                adaptive_threshold = 0.88 if best_match.get('match_type') == 'fingerprint' else 0.95
+                # For partial files (fingerprint matching), use lower threshold (88%)
+                # For complete files (time overlap), use medium threshold (92%)
+                # Note: Lowered from 95% to 92% because browser audio decoding can introduce
+                # slight variations even when loading the same file
+                adaptive_threshold = 0.88 if best_match.get('match_type') == 'fingerprint' else 0.92
 
                 similarity = compare_fingerprints(
                     verify_seg['fingerprint'],
