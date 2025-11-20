@@ -115,13 +115,16 @@ class AudioFingerprinter:
                 peaks = signal.find_peaks(autocorr)[0]
                 if len(peaks) > 0:
                     max_peak = np.max(autocorr[peaks])
-                    noise = np.mean(autocorr) - max_peak
+                    noise = np.abs(np.mean(autocorr) - max_peak)  # Use absolute value
                     hnr = max_peak / (noise + 1e-10)
-                    hnr_values.append(np.log10(hnr + 1))
+                    # Ensure hnr is positive before log
+                    hnr_values.append(np.log10(np.abs(hnr) + 1))
                 else:
                     hnr_values.append(0)
 
-        return np.mean(hnr_values) if hnr_values else 0
+        result = np.mean(hnr_values) if hnr_values else 0
+        # Handle NaN/inf cases
+        return 0 if np.isnan(result) or np.isinf(result) else result
 
     def compute_temporal_envelope(self, audio_data):
         """Compute temporal envelope to detect speed/pitch changes"""
@@ -134,11 +137,22 @@ class AudioFingerprinter:
             envelope.append(np.sqrt(np.mean(frame ** 2)))
 
         envelope = np.array(envelope)
+
+        # Calculate attack rate safely
+        above_mean = envelope[envelope > np.mean(envelope)]
+        if len(above_mean) > 1:
+            attack_rate = np.mean(np.diff(above_mean))
+        else:
+            attack_rate = 0
+
+        # Handle NaN/inf cases
+        attack_rate = 0 if np.isnan(attack_rate) or np.isinf(attack_rate) else attack_rate
+
         return {
             'mean': np.mean(envelope),
             'std': np.std(envelope),
             'max': np.max(envelope),
-            'attack_rate': np.mean(np.diff(envelope[envelope > np.mean(envelope)]))
+            'attack_rate': attack_rate
         }
 
     def compute_cryptographic_hash(self, audio_data):
