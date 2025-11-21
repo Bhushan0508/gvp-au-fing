@@ -318,3 +318,29 @@ class AudioFingerprinter:
                 segment['chromaprintDuration'] = chromaprint_result['duration']
 
         return segment
+
+    def generate_full_file_fingerprint(self, audio_data, include_chromaprint=True):
+        """Generate fingerprint for the entire file without segmentation"""
+        if len(audio_data) == 0:
+            return None
+
+        fingerprint = self.generate_fingerprint(audio_data)
+        crypto_hash = self.compute_cryptographic_hash(audio_data)
+        duration = len(audio_data) / self.sample_rate
+
+        full_file = {
+            'startTime': 0,
+            'endTime': duration,
+            'fingerprint': fingerprint,
+            'cryptoHash': crypto_hash,
+            'duration': duration
+        }
+
+        # Add Chromaprint if requested
+        if include_chromaprint:
+            chromaprint_result = self.compute_chromaprint(audio_data)
+            if chromaprint_result:
+                full_file['chromaprint'] = chromaprint_result['fingerprint']
+                full_file['chromaprintDuration'] = chromaprint_result['duration']
+
+        return full_file

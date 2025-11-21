@@ -84,8 +84,20 @@ def verify_fingerprint():
             # Segment-level comparison for partial matching and tamper detection
             segment_matches = []
             crypto_matches = []
+            verification_result = {}
 
-            if segments and stored.get('segments'):
+            # Handle no-segmentation mode (only full-file comparison)
+            if not segments and not stored.get('segments'):
+                # Both files have no segmentation - pure full-file comparison
+                verification_result = {
+                    'isFullFileOnly': True,
+                    'noSegmentation': True,
+                    'validRegions': [],
+                    'tamperedRegions': [],
+                    'enabledMethods': verification_methods
+                }
+            elif segments and stored.get('segments'):
+                # Normal segmented comparison
                 segment_matches, crypto_matches, verification_result = compare_segments(
                     segments,
                     stored['segments'],
@@ -110,7 +122,7 @@ def verify_fingerprint():
                     'fullMatch': full_match,
                     'segmentMatches': segment_matches,
                     'cryptoMatches': crypto_matches,
-                    'verificationResult': verification_result if segment_matches else {},
+                    'verificationResult': verification_result,
                     'metadata': stored.get('metadata', {}),
                     'createdAt': stored['createdAt'].isoformat(),
                     'hasAudioFile': stored.get('audioFileId') is not None

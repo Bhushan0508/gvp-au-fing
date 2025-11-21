@@ -199,6 +199,7 @@ function setupGenerateTab() {
 function setupVerifyTab() {
     const verifyAudioFile = document.getElementById('verifyAudioFile');
     const verifyBtn = document.getElementById('verifyBtn');
+    const verifySegmentModeRadios = document.querySelectorAll('input[name="verifySegmentMode"]');
 
     verifyAudioFile.addEventListener('change', async (e) => {
         const file = e.target.files[0];
@@ -223,6 +224,18 @@ function setupVerifyTab() {
         }
     });
 
+    verifySegmentModeRadios.forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            const autoOptions = document.querySelectorAll('.auto-chunk-options')[1]; // Second one for verify tab
+
+            if (e.target.value === 'auto') {
+                autoOptions.style.display = 'block';
+            } else {
+                autoOptions.style.display = 'none';
+            }
+        });
+    });
+
     verifyBtn.addEventListener('click', async () => {
         if (!currentAudioData) {
             alert('Please load an audio file to verify');
@@ -244,7 +257,18 @@ function setupVerifyTab() {
             showProgress('verifyProgress');
 
             const fingerprint = audioProcessor.generateFingerprint(currentAudioData);
-            const segments = await audioProcessor.generateSegments(currentAudioData, 5.0);
+
+            // Handle segmentation based on selected mode
+            const segmentMode = document.querySelector('input[name="verifySegmentMode"]:checked').value;
+            let segments = [];
+
+            if (segmentMode === 'none') {
+                // No segmentation - only full file fingerprint
+                segments = [];
+            } else if (segmentMode === 'auto') {
+                const chunkDuration = parseFloat(document.getElementById('verifyChunkDuration').value);
+                segments = await audioProcessor.generateSegments(currentAudioData, chunkDuration);
+            }
 
             const response = await fetch(`${API_BASE}/fingerprint/verify`, {
                 method: 'POST',

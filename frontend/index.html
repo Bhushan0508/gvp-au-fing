@@ -104,6 +104,32 @@
                 </div>
             </div>
 
+            <div class="segmentation-section">
+                <h3>Segmentation Options</h3>
+                <div class="segmentation-controls">
+                    <label>
+                        <input type="radio" name="verifySegmentMode" value="none">
+                        No Segmentation (Full File Only)
+                    </label>
+                    <div class="no-segment-info">
+                        <p class="segment-note">Compare only full-file fingerprints. Use when the stored fingerprint has no segmentation.</p>
+                    </div>
+
+                    <label>
+                        <input type="radio" name="verifySegmentMode" value="auto" checked>
+                        Automatic Chunking
+                    </label>
+                    <div class="auto-chunk-options" style="display: block;">
+                        <label>
+                            Chunk Duration:
+                            <input type="number" id="verifyChunkDuration" value="5" min="1" max="60" step="1">
+                            seconds
+                        </label>
+                        <p class="segment-note">Match the segmentation used when the fingerprint was stored.</p>
+                    </div>
+                </div>
+            </div>
+
             <div class="verification-methods-section">
                 <h3>Verification Methods</h3>
                 <p class="methods-description">Select which verification methods to use (at least one required)</p>
