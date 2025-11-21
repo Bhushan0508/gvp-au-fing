@@ -65,6 +65,7 @@ services:
     depends_on:
       - "etcd"
       - "minio"
+    command: ["milvus", "run", "standalone"]
     networks:
       - audio-fingerprint-network
 
