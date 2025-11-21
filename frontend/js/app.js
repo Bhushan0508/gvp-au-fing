@@ -244,11 +244,12 @@ function setupVerifyTab() {
 
         // Get selected verification methods
         const useCryptographic = document.getElementById('useCryptographic').checked;
+        const useBlake3 = document.getElementById('useBlake3').checked;
         const usePerceptual = document.getElementById('usePerceptual').checked;
         const useChromaprint = document.getElementById('useChromaprint').checked;
 
         // Validate at least one method is selected
-        if (!useCryptographic && !usePerceptual && !useChromaprint) {
+        if (!useCryptographic && !useBlake3 && !usePerceptual && !useChromaprint) {
             alert('Please select at least one verification method');
             return;
         }
@@ -278,6 +279,7 @@ function setupVerifyTab() {
                     segments: segments,
                     verificationMethods: {
                         cryptographic: useCryptographic,
+                        blake3: useBlake3,
                         perceptual: usePerceptual,
                         chromaprint: useChromaprint
                     }

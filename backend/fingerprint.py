@@ -2,6 +2,7 @@ import numpy as np
 from scipy import signal
 from scipy.fftpack import dct
 import hashlib
+import blake3
 import acoustid
 import tempfile
 import soundfile as sf
@@ -160,6 +161,11 @@ class AudioFingerprinter:
         audio_bytes = audio_data.tobytes()
         return hashlib.sha256(audio_bytes).hexdigest()
 
+    def compute_blake3_hash(self, audio_data):
+        """Compute BLAKE3 hash for exact content verification (faster than SHA-256)"""
+        audio_bytes = audio_data.tobytes()
+        return blake3.blake3(audio_bytes).hexdigest()
+
     def compute_chromaprint(self, audio_data):
         """
         Compute Chromaprint fingerprint using AcoustID
@@ -257,7 +263,7 @@ class AudioFingerprinter:
         return fingerprint.tolist()
 
     def generate_segments(self, audio_data, segment_duration=5.0, include_chromaprint=True):
-        """Generate segments with perceptual, cryptographic, and Chromaprint fingerprints"""
+        """Generate segments with perceptual, cryptographic, BLAKE3, and Chromaprint fingerprints"""
         samples_per_segment = int(segment_duration * self.sample_rate)
         segments = []
 
@@ -269,12 +275,14 @@ class AudioFingerprinter:
 
             fingerprint = self.generate_fingerprint(segment_data)
             crypto_hash = self.compute_cryptographic_hash(segment_data)
+            blake3_hash = self.compute_blake3_hash(segment_data)
 
             segment = {
                 'startTime': i / self.sample_rate,
                 'endTime': min((i + samples_per_segment) / self.sample_rate, len(audio_data) / self.sample_rate),
                 'fingerprint': fingerprint,
                 'cryptoHash': crypto_hash,
+                'blake3Hash': blake3_hash,
                 'duration': len(segment_data) / self.sample_rate
             }
 
@@ -290,7 +298,7 @@ class AudioFingerprinter:
         return segments
 
     def generate_custom_segment(self, audio_data, start_time, end_time, include_chromaprint=True):
-        """Generate custom segment fingerprint"""
+        """Generate custom segment fingerprint with BLAKE3"""
         start_sample = int(start_time * self.sample_rate)
         end_sample = int(end_time * self.sample_rate)
 
@@ -301,12 +309,14 @@ class AudioFingerprinter:
 
         fingerprint = self.generate_fingerprint(segment_data)
         crypto_hash = self.compute_cryptographic_hash(segment_data)
+        blake3_hash = self.compute_blake3_hash(segment_data)
 
         segment = {
             'startTime': start_time,
             'endTime': end_time,
             'fingerprint': fingerprint,
             'cryptoHash': crypto_hash,
+            'blake3Hash': blake3_hash,
             'duration': len(segment_data) / self.sample_rate
         }
 
@@ -320,12 +330,13 @@ class AudioFingerprinter:
         return segment
 
     def generate_full_file_fingerprint(self, audio_data, include_chromaprint=True):
-        """Generate fingerprint for the entire file without segmentation"""
+        """Generate fingerprint for the entire file without segmentation (includes BLAKE3)"""
         if len(audio_data) == 0:
             return None
 
         fingerprint = self.generate_fingerprint(audio_data)
         crypto_hash = self.compute_cryptographic_hash(audio_data)
+        blake3_hash = self.compute_blake3_hash(audio_data)
         duration = len(audio_data) / self.sample_rate
 
         full_file = {
@@ -333,6 +344,7 @@ class AudioFingerprinter:
             'endTime': duration,
             'fingerprint': fingerprint,
             'cryptoHash': crypto_hash,
+            'blake3Hash': blake3_hash,
             'duration': duration
         }
 

@@ -71,6 +71,7 @@ def verify_fingerprint():
         segments = data.get('segments', [])
         verification_methods = data.get('verificationMethods', {
             'cryptographic': True,
+            'blake3': True,
             'perceptual': True,
             'chromaprint': True
         })
@@ -405,6 +406,15 @@ def compare_segments(segments_to_verify, stored_segments, verification_methods=N
                         })
                 # If not time_overlap, crypto_matched stays None (not applicable)
 
+            # BLAKE3 hash comparison (exact match, faster than SHA-256)
+            blake3_matched = None  # Default: not applicable
+            if verification_methods.get('blake3', True):
+                # Only use blake3 for time-overlap matches, not fingerprint-based matches
+                if best_match.get('match_type') == 'time_overlap':
+                    if verify_seg.get('blake3Hash') and stored_seg.get('blake3Hash'):
+                        blake3_matched = verify_seg['blake3Hash'] == stored_seg['blake3Hash']
+                # If not time_overlap, blake3_matched stays None (not applicable)
+
             # Chromaprint comparison (industry-standard audio matching)
             chromaprint_matched = None  # None means "not available"
             chromaprint_similarity = 0.0
@@ -440,6 +450,9 @@ def compare_segments(segments_to_verify, stored_segments, verification_methods=N
             if verification_methods.get('cryptographic', True) and crypto_matched is not None:
                 # Only include crypto if it's applicable (time-overlap matches)
                 methods_results.append(crypto_matched)
+            if verification_methods.get('blake3', True) and blake3_matched is not None:
+                # Only include blake3 if it's applicable (time-overlap matches)
+                methods_results.append(blake3_matched)
             if verification_methods.get('perceptual', True):
                 methods_results.append(perceptual_matched)
             if verification_methods.get('chromaprint', True) and chromaprint_matched is not None:
@@ -460,9 +473,10 @@ def compare_segments(segments_to_verify, stored_segments, verification_methods=N
                 'similarity': similarity['similarity'],
                 'matched': overall_matched,
                 'cryptoMatched': crypto_matched,
+                'blake3Matched': blake3_matched,
                 'chromaprintMatched': chromaprint_matched,
                 'chromaprintSimilarity': chromaprint_similarity,
-                'exactMatch': crypto_matched,
+                'exactMatch': crypto_matched or blake3_matched,
                 'perceptualMatch': perceptual_matched,
                 'isTampered': is_tampered,
                 'enabledMethods': verification_methods,
