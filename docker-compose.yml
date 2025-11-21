@@ -15,6 +15,59 @@ services:
     networks:
       - audio-fingerprint-network
 
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.5
+    container_name: milvus-etcd
+    restart: unless-stopped
+    environment:
+      - ETCD_AUTO_COMPACTION_MODE=revision
+      - ETCD_AUTO_COMPACTION_RETENTION=1000
+      - ETCD_QUOTA_BACKEND_BYTES=4294967296
+      - ETCD_SNAPSHOT_COUNT=50000
+    volumes:
+      - etcd_data:/etcd
+    command: etcd -advertise-client-urls=http://127.0.0.1:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
+    networks:
+      - audio-fingerprint-network
+
+  minio:
+    image: minio/minio:RELEASE.2023-03-20T20-16-18Z
+    container_name: milvus-minio
+    restart: unless-stopped
+    environment:
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    volumes:
+      - minio_data:/minio_data
+    command: minio server /minio_data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - audio-fingerprint-network
+
+  milvus:
+    image: milvusdb/milvus:v2.3.4
+    container_name: milvus-standalone
+    restart: unless-stopped
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio:9000
+    volumes:
+      - milvus_data:/var/lib/milvus
+    ports:
+      - "19530:19530"
+      - "9091:9091"
+    depends_on:
+      - "etcd"
+      - "minio"
+    networks:
+      - audio-fingerprint-network
+
   flask-app:
     build: .
     container_name: audio-fingerprint-app
@@ -23,9 +76,11 @@ services:
       - "5002:5002"
     environment:
       - MONGO_URI=mongodb://mongodb:27017/
+      - MILVUS_HOST=milvus
       - FLASK_ENV=development
     depends_on:
       - mongodb
+      - milvus
     networks:
       - audio-fingerprint-network
     volumes:
@@ -36,6 +91,12 @@ volumes:
   mongodb_data:
     driver: local
   mongodb_config:
+    driver: local
+  etcd_data:
+    driver: local
+  minio_data:
+    driver: local
+  milvus_data:
     driver: local
 
 networks:

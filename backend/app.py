@@ -8,6 +8,8 @@ import os
 from datetime import datetime
 from pathlib import Path
 import base64
+import numpy as np
+import librosa
 
 app = Flask(__name__, static_folder='../frontend')
 CORS(app)
@@ -17,6 +19,17 @@ client = MongoClient(MONGO_URI)
 db = client['audio_fingerprint_db']
 fingerprints_collection = db['fingerprints']
 fs = gridfs.GridFS(db)
+
+# Initialize vector fingerprinter (optional - will gracefully fail if Milvus not available)
+try:
+    from vector_fingerprint import VectorFingerprinter
+    vector_fp = VectorFingerprinter(milvus_host=os.getenv('MILVUS_HOST', 'milvus'))
+    VECTOR_ENABLED = True
+    print("Vector fingerprinting enabled with CLAP + Milvus")
+except Exception as e:
+    vector_fp = None
+    VECTOR_ENABLED = False
+    print(f"Vector fingerprinting disabled: {e}")
 
 @app.route('/')
 def index():
@@ -219,9 +232,93 @@ def get_stats():
             'stats': {
                 'totalFingerprints': total_fingerprints,
                 'totalAudioSize': total_audio_size,
-                'totalAudioSizeMB': round(total_audio_size / (1024 * 1024), 2)
+                'totalAudioSizeMB': round(total_audio_size / (1024 * 1024), 2),
+                'vectorEnabled': VECTOR_ENABLED
             }
         })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/fingerprint/vector/generate', methods=['POST'])
+def generate_vector_fingerprint():
+    """Generate vector-based fingerprint using CLAP embeddings"""
+    if not VECTOR_ENABLED:
+        return jsonify({'success': False, 'error': 'Vector fingerprinting not available'}), 503
+
+    try:
+        data = request.json
+        audio_data_base64 = data.get('audioData')
+
+        if not audio_data_base64:
+            return jsonify({'success': False, 'error': 'No audio data provided'}), 400
+
+        # Decode audio data
+        audio_bytes = base64.b64decode(audio_data_base64.split(',')[1] if ',' in audio_data_base64 else audio_data_base64)
+
+        # Load audio using librosa
+        import io
+        audio_data, sr = librosa.load(io.BytesIO(audio_bytes), sr=vector_fp.sample_rate, mono=True)
+
+        # Generate embeddings for segments
+        segments = vector_fp.generate_segment_embeddings(audio_data, segment_duration=10.0)
+
+        return jsonify({
+            'success': True,
+            'segments': len(segments),
+            'vectorSegments': segments,
+            'duration': len(audio_data) / sr
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/fingerprint/vector/store', methods=['POST'])
+def store_vector_fingerprint():
+    """Store vector embeddings in Milvus"""
+    if not VECTOR_ENABLED:
+        return jsonify({'success': False, 'error': 'Vector fingerprinting not available'}), 503
+
+    try:
+        data = request.json
+        fingerprint_id = data.get('fingerprintId')
+        vector_segments = data.get('vectorSegments', [])
+
+        if not fingerprint_id or not vector_segments:
+            return jsonify({'success': False, 'error': 'Missing required data'}), 400
+
+        # Store in Milvus
+        success = vector_fp.store_embeddings(fingerprint_id, vector_segments)
+
+        if success:
+            return jsonify({'success': True, 'message': f'Stored {len(vector_segments)} vector embeddings'})
+        else:
+            return jsonify({'success': False, 'error': 'Failed to store embeddings'}), 500
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/fingerprint/vector/verify', methods=['POST'])
+def verify_vector_fingerprint():
+    """Verify audio using vector similarity search"""
+    if not VECTOR_ENABLED:
+        return jsonify({'success': False, 'error': 'Vector fingerprinting not available'}), 503
+
+    try:
+        data = request.json
+        query_segments = data.get('vectorSegments', [])
+        stored_fingerprint_id = data.get('fingerprintId')
+
+        if not query_segments or not stored_fingerprint_id:
+            return jsonify({'success': False, 'error': 'Missing required data'}), 400
+
+        # Verify using vector similarity
+        result = vector_fp.verify_audio(query_segments, stored_fingerprint_id)
+
+        return jsonify({
+            'success': True,
+            'verification': result
+        })
+
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 

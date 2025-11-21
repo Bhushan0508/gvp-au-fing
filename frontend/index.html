@@ -72,6 +72,18 @@
                 </div>
             </div>
 
+            <div class="vector-section">
+                <h3>Advanced Options</h3>
+                <label class="method-option">
+                    <input type="checkbox" id="useVectorFingerprint">
+                    <div class="method-info">
+                        <strong>🤖 AI Vector Fingerprinting (CLAP + Milvus)</strong>
+                        <span class="method-desc">Use AI embeddings for advanced partial matching and tampering detection</span>
+                    </div>
+                </label>
+                <p class="segment-note">Enables semantic audio matching using deep learning. Better for partial file matching and quality variations.</p>
+            </div>
+
             <div class="action-section">
                 <button id="generateBtn" class="btn btn-primary">Generate Fingerprint</button>
                 <div id="generateProgress" class="progress hidden">
@@ -160,6 +172,13 @@
                         <div class="method-info">
                             <strong>🎵 Chromaprint</strong>
                             <span class="method-desc">Industry standard - handles format variations</span>
+                        </div>
+                    </label>
+                    <label class="method-option">
+                        <input type="checkbox" id="useVectorVerify">
+                        <div class="method-info">
+                            <strong>🤖 AI Vector Matching (CLAP)</strong>
+                            <span class="method-desc">Deep learning embeddings - best for partial matching</span>
                         </div>
                     </label>
                 </div>
