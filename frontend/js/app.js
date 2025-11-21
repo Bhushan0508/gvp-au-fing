@@ -464,6 +464,7 @@ function displayVerificationResults(matches) {
 
             // Calculate method statistics
             let cryptoCount = 0, cryptoTotal = 0;
+            let blake3Count = 0, blake3Total = 0;
             let perceptualCount = 0, perceptualTotal = 0;
             let chromaprintCount = 0, chromaprintTotal = 0;
 
@@ -473,6 +474,11 @@ function displayVerificationResults(matches) {
                     if (seg.cryptoMatched !== null && seg.cryptoMatched !== undefined) {
                         cryptoTotal++;
                         if (seg.cryptoMatched === true) cryptoCount++;
+                    }
+                    // Count BLAKE3 matches
+                    if (seg.blake3Matched !== null && seg.blake3Matched !== undefined) {
+                        blake3Total++;
+                        if (seg.blake3Matched === true) blake3Count++;
                     }
                     // Count perceptual matches
                     if (seg.perceptualMatch !== undefined) {
@@ -489,7 +495,7 @@ function displayVerificationResults(matches) {
 
             // Method breakdown HTML
             let methodsBreakdown = '';
-            if (cryptoTotal > 0 || perceptualTotal > 0 || chromaprintTotal > 0) {
+            if (cryptoTotal > 0 || blake3Total > 0 || perceptualTotal > 0 || chromaprintTotal > 0) {
                 methodsBreakdown = '<div class="methods-breakdown"><h4>🔍 Verification Methods Results:</h4>';
 
                 if (cryptoTotal > 0) {
@@ -501,6 +507,19 @@ function displayVerificationResults(matches) {
                             <strong>${cryptoStatus} Cryptographic (SHA-256):</strong>
                             ${cryptoCount}/${cryptoTotal} segments (${cryptoPct}%)
                             <span class="method-note">Exact byte-level matching</span>
+                        </div>
+                    `;
+                }
+
+                if (blake3Total > 0) {
+                    const blake3Pct = ((blake3Count / blake3Total) * 100).toFixed(1);
+                    const blake3Status = blake3Count === blake3Total ? '✓' : blake3Count > 0 ? '⚠' : '✗';
+                    const blake3Class = blake3Count === blake3Total ? 'method-pass' : blake3Count > 0 ? 'method-partial' : 'method-fail';
+                    methodsBreakdown += `
+                        <div class="method-result ${blake3Class}">
+                            <strong>${blake3Status} BLAKE3:</strong>
+                            ${blake3Count}/${blake3Total} segments (${blake3Pct}%)
+                            <span class="method-note">Faster cryptographic hash</span>
                         </div>
                     `;
                 }
@@ -532,6 +551,30 @@ function displayVerificationResults(matches) {
                 }
 
                 methodsBreakdown += '</div>';
+            }
+
+            // Add CLAP vector verification results if available
+            if (match.vectorVerification) {
+                const vv = match.vectorVerification;
+                const vectorPct = vv.match_percentage ? vv.match_percentage.toFixed(1) : 0;
+                const vectorStatus = vv.matched ? '✓' : vv.is_partial_match ? '⚠' : '✗';
+                const vectorClass = vv.matched ? 'method-pass' : vv.is_partial_match ? 'method-partial' : 'method-fail';
+
+                if (!methodsBreakdown) {
+                    methodsBreakdown = '<div class="methods-breakdown"><h4>🔍 Verification Methods Results:</h4>';
+                }
+
+                methodsBreakdown += `
+                    <div class="method-result ${vectorClass}">
+                        <strong>${vectorStatus} AI Vector Matching (CLAP):</strong>
+                        ${vv.matched_segments}/${vv.total_segments} segments (${vectorPct}%)
+                        <span class="method-note">Semantic audio embedding - ${vv.is_tampered ? 'Tampered' : vv.is_partial_match ? 'Partial match' : 'Full match'}</span>
+                    </div>
+                `;
+
+                if (!methodsBreakdown.includes('</div>')) {
+                    methodsBreakdown += '</div>';
+                }
             }
 
             // Verification Summary
