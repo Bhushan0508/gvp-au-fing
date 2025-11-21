@@ -761,3 +761,141 @@ input[type="file"]:hover {
 .method-result.method-fail strong {
     color: #721c24;
 }
+
+/* AI Vector Matching Section */
+.vector-matching-section {
+    margin: 25px 0;
+    padding: 20px;
+    background: linear-gradient(135deg, #f5f7ff 0%, #fef5ff 100%);
+    border-radius: 8px;
+    border: 2px solid #667eea;
+    box-shadow: 0 2px 10px rgba(102, 126, 234, 0.1);
+}
+
+.vector-matching-section h4 {
+    margin-bottom: 15px;
+    color: #667eea;
+    font-size: 1.2em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.vector-status {
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 5px solid #667eea;
+}
+
+.vector-status.method-pass {
+    background: #d4edda;
+    border-left-color: #27ae60;
+}
+
+.vector-status.method-partial {
+    background: #fff3cd;
+    border-left-color: #f39c12;
+}
+
+.vector-status.method-fail {
+    background: #f8d7da;
+    border-left-color: #e74c3c;
+}
+
+.vector-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+}
+
+.vector-header strong {
+    font-size: 1.1em;
+    color: #333;
+}
+
+.vector-match-type {
+    font-size: 0.95em;
+    padding: 5px 12px;
+    background: white;
+    border-radius: 15px;
+    font-weight: 600;
+    color: #667eea;
+    border: 1px solid #667eea;
+}
+
+.vector-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 10px;
+}
+
+.vector-stats p {
+    margin: 5px 0;
+    padding: 10px;
+    background: white;
+    border-radius: 4px;
+    color: #555;
+    font-size: 0.95em;
+}
+
+.vector-segment-details {
+    margin-top: 20px;
+    padding: 15px;
+    background: white;
+    border-radius: 6px;
+    border: 1px solid #e0e0e0;
+}
+
+.vector-segment-details h5 {
+    color: #667eea;
+    margin-bottom: 12px;
+    font-size: 1em;
+}
+
+.vector-segments-list {
+    list-style: none;
+    padding: 0;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.vector-segment {
+    padding: 12px;
+    margin: 8px 0;
+    border-radius: 4px;
+    border-left: 4px solid #ddd;
+    background: #f9f9f9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.vector-segment.high {
+    border-left-color: #27ae60;
+    background: #d4edda;
+}
+
+.vector-segment.medium {
+    border-left-color: #f39c12;
+    background: #fff3cd;
+}
+
+.vector-segment.low {
+    border-left-color: #e74c3c;
+    background: #f8d7da;
+}
+
+.vector-segment strong {
+    font-size: 0.9em;
+    color: #333;
+}
+
+.vector-segment .similarity-badge {
+    font-size: 0.85em;
+    padding: 4px 10px;
+}

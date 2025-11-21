@@ -553,28 +553,56 @@ function displayVerificationResults(matches) {
                 methodsBreakdown += '</div>';
             }
 
-            // Add CLAP vector verification results if available
+            // Prepare AI Vector Matching results separately
+            let vectorMatchingSection = '';
             if (match.vectorVerification) {
                 const vv = match.vectorVerification;
                 const vectorPct = vv.match_percentage ? vv.match_percentage.toFixed(1) : 0;
-                const vectorStatus = vv.matched ? '✓' : vv.is_partial_match ? '⚠' : '✗';
+                const vectorStatus = vv.matched ? '✓ VERIFIED' : vv.is_partial_match ? '⚠ PARTIAL MATCH' : '✗ NO MATCH';
                 const vectorClass = vv.matched ? 'method-pass' : vv.is_partial_match ? 'method-partial' : 'method-fail';
+                const matchType = vv.is_tampered ? '🚨 Tampered Audio Detected' : vv.is_partial_match ? '📋 Partial File Match' : '✓ Full Match';
 
-                if (!methodsBreakdown) {
-                    methodsBreakdown = '<div class="methods-breakdown"><h4>🔍 Verification Methods Results:</h4>';
+                vectorMatchingSection = `
+                    <div class="vector-matching-section">
+                        <h4>🤖 AI Vector Matching (CLAP) Results:</h4>
+                        <div class="vector-status ${vectorClass}">
+                            <div class="vector-header">
+                                <strong>${vectorStatus}</strong>
+                                <span class="vector-match-type">${matchType}</span>
+                            </div>
+                            <div class="vector-stats">
+                                <p><strong>Overall Match:</strong> ${vectorPct}%</p>
+                                <p><strong>Matched Segments:</strong> ${vv.matched_segments}/${vv.total_segments}</p>
+                                <p><strong>Method:</strong> Semantic audio embedding using CLAP (512-dimensional vectors)</p>
+                                <p><strong>Technology:</strong> Deep learning-based similarity search with Milvus vector database</p>
+                            </div>
+                        </div>`;
+
+                // Add detailed segment-by-segment results if available
+                if (vv.segment_matches && vv.segment_matches.length > 0) {
+                    vectorMatchingSection += `
+                        <div class="vector-segment-details">
+                            <h5>Segment-by-Segment CLAP Matches:</h5>
+                            <ul class="vector-segments-list">`;
+
+                    vv.segment_matches.forEach(seg => {
+                        const similarity = (seg.similarity * 100).toFixed(1);
+                        const simClass = seg.similarity >= 0.95 ? 'high' : seg.similarity >= 0.85 ? 'medium' : 'low';
+                        vectorMatchingSection += `
+                            <li class="vector-segment ${simClass}">
+                                <strong>Query Segment ${seg.query_segment}:</strong> ${seg.query_time}
+                                → <strong>Matched Segment ${seg.matched_segment}:</strong> ${seg.matched_time}
+                                <span class="similarity-badge">${similarity}% similarity</span>
+                            </li>`;
+                    });
+
+                    vectorMatchingSection += `
+                            </ul>
+                        </div>`;
                 }
 
-                methodsBreakdown += `
-                    <div class="method-result ${vectorClass}">
-                        <strong>${vectorStatus} AI Vector Matching (CLAP):</strong>
-                        ${vv.matched_segments}/${vv.total_segments} segments (${vectorPct}%)
-                        <span class="method-note">Semantic audio embedding - ${vv.is_tampered ? 'Tampered' : vv.is_partial_match ? 'Partial match' : 'Full match'}</span>
-                    </div>
-                `;
-
-                if (!methodsBreakdown.includes('</div>')) {
-                    methodsBreakdown += '</div>';
-                }
+                vectorMatchingSection += `
+                    </div>`;
             }
 
             // Verification Summary
@@ -606,6 +634,7 @@ function displayVerificationResults(matches) {
                             ${vr.isComplete ? '<p><strong>Type:</strong> Complete Audio File</p>' : ''}
                         </div>
                         ${methodsBreakdown}
+                        ${vectorMatchingSection}
                     </div>
                 `;
             }
