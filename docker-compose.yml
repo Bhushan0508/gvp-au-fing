@@ -79,6 +79,9 @@ services:
       - MONGO_URI=mongodb://mongodb:27017/
       - MILVUS_HOST=milvus
       - FLASK_ENV=development
+      - HF_HOME=/app/model_cache
+      - TORCH_HOME=/app/model_cache/torch
+      - TRANSFORMERS_CACHE=/app/model_cache/transformers
     depends_on:
       - mongodb
       - milvus
@@ -88,6 +91,7 @@ services:
       - ./backend:/app/backend
       - ./frontend:/app/frontend
       - ./start.sh:/app/start.sh
+      - model_cache:/app/model_cache
     command: ["bash", "/app/start.sh"]
 
 volumes:
@@ -100,6 +104,8 @@ volumes:
   minio_data:
     driver: local
   milvus_data:
+    driver: local
+  model_cache:
     driver: local
 
 networks:

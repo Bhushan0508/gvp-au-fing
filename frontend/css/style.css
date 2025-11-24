@@ -435,6 +435,83 @@ input[type="file"]:hover {
     margin-top: 15px;
 }
 
+.segment-summary-table {
+    margin: 15px 0;
+    overflow-x: auto;
+}
+
+.match-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.match-table thead {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.match-table th {
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.9em;
+}
+
+.match-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #e0e0e0;
+    font-size: 0.9em;
+}
+
+.match-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.match-table .arrow-cell {
+    text-align: center;
+    color: #667eea;
+    font-weight: bold;
+    font-size: 1.2em;
+}
+
+.match-table .status-cell {
+    font-weight: 600;
+}
+
+.match-row {
+    background: #d4edda;
+}
+
+.match-row .status-cell {
+    color: #27ae60;
+}
+
+.tamper-row {
+    background: #f8d7da;
+}
+
+.tamper-row .status-cell {
+    color: #e74c3c;
+}
+
+.nomatch-row {
+    background: #fff3cd;
+}
+
+.nomatch-row .status-cell {
+    color: #f39c12;
+}
+
+.no-match-cell {
+    text-align: center;
+    font-style: italic;
+    color: #999;
+}
+
 .segment-match {
     padding: 15px;
     background: #f5f5f5;
@@ -457,6 +534,25 @@ input[type="file"]:hover {
     font-weight: 600;
     margin-bottom: 8px;
     color: #333;
+}
+
+.input-segment {
+    margin-bottom: 5px;
+    padding: 8px;
+    background: rgba(102, 126, 234, 0.1);
+    border-radius: 4px;
+}
+
+.segment-mapping {
+    margin-top: 5px;
+    padding: 8px;
+    padding-left: 20px;
+    color: #555;
+    font-weight: normal;
+    font-size: 0.95em;
+    background: rgba(39, 174, 96, 0.05);
+    border-radius: 4px;
+    border-left: 3px solid #27ae60;
 }
 
 .segment-metrics {

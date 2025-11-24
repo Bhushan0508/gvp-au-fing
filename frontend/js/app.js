@@ -756,10 +756,57 @@ function displayVerificationResults(matches) {
                 validRegionsHtml += '</ul></div>';
             }
 
-            // Detailed Segment Analysis
+            // Detailed Segment Analysis with Summary Table
             let segmentsHtml = '';
             if (match.segmentMatches && match.segmentMatches.length > 0) {
-                segmentsHtml = '<div class="segment-matches"><h4>Detailed Segment Analysis:</h4>';
+                segmentsHtml = '<div class="segment-matches">';
+
+                // Add summary table first
+                segmentsHtml += `
+                    <h4>📋 Segment Matching Summary:</h4>
+                    <div class="segment-summary-table">
+                        <table class="match-table">
+                            <thead>
+                                <tr>
+                                    <th>Input Segment</th>
+                                    <th>Input Time Range</th>
+                                    <th>↔</th>
+                                    <th>Original Segment</th>
+                                    <th>Original Time Range</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>`;
+
+                // Add each segment mapping to the table
+                match.segmentMatches.forEach(seg => {
+                    const matchStatus = seg.cryptoMatched ? '✓ Exact' :
+                                      seg.chromaprintMatched ? '✓ Chromaprint' :
+                                      seg.matched ? '✓ Match' :
+                                      seg.isTampered ? '✗ Tampered' : '✗ No Match';
+                    const rowClass = seg.matched ? 'match-row' : seg.isTampered ? 'tamper-row' : 'nomatch-row';
+
+                    const originalSegInfo = seg.storedSegmentIndex !== undefined && seg.storedStartTime !== undefined
+                        ? `<td>Segment ${seg.storedSegmentIndex + 1}</td><td>${seg.storedStartTime.toFixed(2)}s - ${seg.storedEndTime.toFixed(2)}s</td>`
+                        : `<td colspan="2" class="no-match-cell">No match found</td>`;
+
+                    segmentsHtml += `
+                        <tr class="${rowClass}">
+                            <td>Segment ${seg.segmentIndex + 1}</td>
+                            <td>${seg.startTime.toFixed(2)}s - ${seg.endTime.toFixed(2)}s</td>
+                            <td class="arrow-cell">→</td>
+                            ${originalSegInfo}
+                            <td class="status-cell">${matchStatus}</td>
+                        </tr>`;
+                });
+
+                segmentsHtml += `
+                            </tbody>
+                        </table>
+                    </div>
+                    <h4>🔍 Detailed Segment Analysis:</h4>`;
+
+                // Detailed analysis cards
                 match.segmentMatches.forEach(seg => {
                     let segClass = seg.matched ? 'matched' : '';
                     if (seg.isTampered) segClass = 'tampered';
@@ -772,11 +819,21 @@ function displayVerificationResults(matches) {
                     const chromaprintStatus = seg.chromaprintMatched ? '🎵 Match' : '🎵 No Match';
                     const hasChromaprint = seg.chromaprintSimilarity !== undefined;
 
+                    // Stored segment info
+                    const storedSegInfo = seg.storedSegmentIndex !== undefined && seg.storedStartTime !== undefined
+                        ? `matches <strong>Original Segment ${seg.storedSegmentIndex + 1}</strong> (${seg.storedStartTime.toFixed(2)}s - ${seg.storedEndTime.toFixed(2)}s)`
+                        : 'no match in original file';
+
                     segmentsHtml += `
                         <div class="segment-match ${segClass}">
                             <div class="segment-info">
-                                <strong>Segment ${seg.segmentIndex + 1}:</strong>
-                                ${seg.startTime.toFixed(2)}s - ${seg.endTime.toFixed(2)}s
+                                <div class="input-segment">
+                                    <strong>Input Segment ${seg.segmentIndex + 1}:</strong>
+                                    ${seg.startTime.toFixed(2)}s - ${seg.endTime.toFixed(2)}s
+                                </div>
+                                <div class="segment-mapping">
+                                    → ${storedSegInfo}
+                                </div>
                             </div>
                             <div class="segment-metrics">
                                 <span><strong>Perceptual:</strong> ${segSimilarity}%</span>
