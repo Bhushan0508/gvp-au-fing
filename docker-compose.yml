@@ -87,6 +87,8 @@ services:
     volumes:
       - ./backend:/app/backend
       - ./frontend:/app/frontend
+      - ./start.sh:/app/start.sh
+    command: ["bash", "/app/start.sh"]
 
 volumes:
   mongodb_data:
