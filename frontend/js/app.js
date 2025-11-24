@@ -165,6 +165,7 @@ function setupGenerateTab() {
                 });
             }
 
+            // Store traditional fingerprint
             const response = await fetch(`${API_BASE}/fingerprint/store`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -185,7 +186,43 @@ function setupGenerateTab() {
             const result = await response.json();
 
             if (result.success) {
-                showStatus('storeStatus', 'Fingerprint and audio file stored successfully!', 'success');
+                // Generate and store AI vector fingerprint
+                try {
+                    const vectorResponse = await fetch(`${API_BASE}/fingerprint/vector/generate`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            audioData: audioDataBase64
+                        })
+                    });
+
+                    const vectorResult = await vectorResponse.json();
+
+                    if (vectorResult.success && vectorResult.vectorSegments) {
+                        // Store vector embeddings in Milvus
+                        const storeVectorResponse = await fetch(`${API_BASE}/fingerprint/vector/store`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                fingerprintId: result.id,
+                                vectorSegments: vectorResult.vectorSegments
+                            })
+                        });
+
+                        const storeVectorResult = await storeVectorResponse.json();
+
+                        if (storeVectorResult.success) {
+                            showStatus('storeStatus', 'Fingerprint, audio file, and AI vector embeddings stored successfully!', 'success');
+                        } else {
+                            showStatus('storeStatus', 'Fingerprint stored, but AI vector storage failed: ' + storeVectorResult.error, 'warning');
+                        }
+                    } else {
+                        showStatus('storeStatus', 'Fingerprint stored, but AI vector generation failed', 'warning');
+                    }
+                } catch (vectorError) {
+                    console.error('Error with AI vector fingerprinting:', vectorError);
+                    showStatus('storeStatus', 'Fingerprint stored, but AI vector processing failed: ' + vectorError.message, 'warning');
+                }
             } else {
                 showStatus('storeStatus', 'Error: ' + result.error, 'error');
             }
@@ -271,6 +308,7 @@ function setupVerifyTab() {
                 segments = await audioProcessor.generateSegments(currentAudioData, chunkDuration);
             }
 
+            // Perform traditional fingerprint verification
             const response = await fetch(`${API_BASE}/fingerprint/verify`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -287,6 +325,55 @@ function setupVerifyTab() {
             });
 
             const result = await response.json();
+
+            // Generate AI vector fingerprint and verify against stored matches
+            if (result.success && result.matches.length > 0 && currentAudioFile) {
+                try {
+                    const reader = new FileReader();
+                    const audioDataBase64 = await new Promise((resolve, reject) => {
+                        reader.onload = () => resolve(reader.result);
+                        reader.onerror = reject;
+                        reader.readAsDataURL(currentAudioFile);
+                    });
+
+                    // Generate vector embeddings for the query audio
+                    const vectorResponse = await fetch(`${API_BASE}/fingerprint/vector/generate`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            audioData: audioDataBase64
+                        })
+                    });
+
+                    const vectorResult = await vectorResponse.json();
+
+                    if (vectorResult.success && vectorResult.vectorSegments) {
+                        // Verify against each match
+                        for (let match of result.matches) {
+                            try {
+                                const verifyResponse = await fetch(`${API_BASE}/fingerprint/vector/verify`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        vectorSegments: vectorResult.vectorSegments,
+                                        fingerprintId: match.id
+                                    })
+                                });
+
+                                const verifyResult = await verifyResponse.json();
+
+                                if (verifyResult.success) {
+                                    match.vectorVerification = verifyResult.verification;
+                                }
+                            } catch (vectorVerifyError) {
+                                console.error('Error verifying AI vector for match:', vectorVerifyError);
+                            }
+                        }
+                    }
+                } catch (vectorError) {
+                    console.error('Error with AI vector verification:', vectorError);
+                }
+            }
 
             hideProgress('verifyProgress');
 
