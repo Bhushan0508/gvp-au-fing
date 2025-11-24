@@ -778,7 +778,10 @@ function displayVerificationResults(matches) {
                             </thead>
                             <tbody>`;
 
-                // Add each segment mapping to the table
+                // Track which original segments are matched
+                const matchedOriginalSegments = new Set();
+
+                // Add each input segment mapping to the table
                 match.segmentMatches.forEach(seg => {
                     const matchStatus = seg.cryptoMatched ? '✓ Exact' :
                                       seg.chromaprintMatched ? '✓ Chromaprint' :
@@ -790,6 +793,11 @@ function displayVerificationResults(matches) {
                         ? `<td>Segment ${seg.storedSegmentIndex + 1}</td><td>${seg.storedStartTime.toFixed(2)}s - ${seg.storedEndTime.toFixed(2)}s</td>`
                         : `<td colspan="2" class="no-match-cell">No match found</td>`;
 
+                    // Track matched original segments
+                    if (seg.storedSegmentIndex !== undefined) {
+                        matchedOriginalSegments.add(seg.storedSegmentIndex);
+                    }
+
                     segmentsHtml += `
                         <tr class="${rowClass}">
                             <td>Segment ${seg.segmentIndex + 1}</td>
@@ -799,6 +807,40 @@ function displayVerificationResults(matches) {
                             <td class="status-cell">${matchStatus}</td>
                         </tr>`;
                 });
+
+                // Add unmatched original segments (segments in original that don't match any input)
+                if (match.segmentMatches.length > 0) {
+                    // Get total original segments from the match data
+                    const originalSegmentCount = Math.max(...match.segmentMatches
+                        .filter(s => s.storedSegmentIndex !== undefined)
+                        .map(s => s.storedSegmentIndex + 1), 0);
+
+                    // Find unmatched segments
+                    const unmatchedOriginalSegments = [];
+                    for (let i = 0; i < originalSegmentCount; i++) {
+                        if (!matchedOriginalSegments.has(i)) {
+                            unmatchedOriginalSegments.push(i);
+                        }
+                    }
+
+                    // Display unmatched original segments
+                    if (unmatchedOriginalSegments.length > 0) {
+                        unmatchedOriginalSegments.forEach(segIdx => {
+                            // Estimate time range (assuming 10s segments by default)
+                            const startTime = segIdx * 10;
+                            const endTime = (segIdx + 1) * 10;
+
+                            segmentsHtml += `
+                                <tr class="missing-row">
+                                    <td colspan="2" class="no-match-cell">Not present in input</td>
+                                    <td class="arrow-cell">←</td>
+                                    <td>Segment ${segIdx + 1}</td>
+                                    <td>${startTime.toFixed(2)}s - ${endTime.toFixed(2)}s</td>
+                                    <td class="status-cell">⚠ Missing</td>
+                                </tr>`;
+                        });
+                    }
+                }
 
                 segmentsHtml += `
                             </tbody>

@@ -512,6 +512,20 @@ input[type="file"]:hover {
     color: #999;
 }
 
+.missing-row {
+    background: #e8daef;
+    border-left: 3px solid #9b59b6;
+}
+
+.missing-row .status-cell {
+    color: #9b59b6;
+    font-weight: 600;
+}
+
+.missing-row .arrow-cell {
+    color: #9b59b6;
+}
+
 .segment-match {
     padding: 15px;
     background: #f5f5f5;
