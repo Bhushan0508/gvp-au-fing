@@ -506,24 +506,51 @@ input[type="file"]:hover {
     color: #f39c12;
 }
 
-.no-match-cell {
-    text-align: center;
-    font-style: italic;
-    color: #999;
+.unmatched-input-row {
+    background: #ffe6e6;
+    border-left: 3px solid #ff6b6b;
 }
 
-.missing-row {
+.unmatched-input-row .status-cell {
+    color: #c0392b;
+    font-weight: 600;
+}
+
+.unmatched-input-row .arrow-cell {
+    color: #e74c3c;
+}
+
+.missing-original-row {
     background: #e8daef;
     border-left: 3px solid #9b59b6;
 }
 
-.missing-row .status-cell {
-    color: #9b59b6;
+.missing-original-row .status-cell {
+    color: #7d3c98;
     font-weight: 600;
 }
 
-.missing-row .arrow-cell {
+.missing-original-row .arrow-cell {
     color: #9b59b6;
+}
+
+.section-header {
+    background: #f8f9fa;
+    border-top: 2px solid #dee2e6;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.section-header td {
+    padding: 12px !important;
+    text-align: center;
+    font-weight: 600;
+    color: #495057;
+}
+
+.no-match-cell {
+    text-align: center;
+    font-style: italic;
+    color: #999;
 }
 
 .segment-match {
