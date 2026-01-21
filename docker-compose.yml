@@ -6,7 +6,7 @@ services:
     container_name: audio-fingerprint-mongodb
     restart: unless-stopped
     ports:
-      - "27019:27017"
+      - "27017:27017"
     environment:
       MONGO_INITDB_DATABASE: audio_fingerprint_db
     volumes:
@@ -92,7 +92,7 @@ services:
       - ./frontend:/app/frontend
       - ./start.sh:/app/start.sh
       - model_cache:/app/model_cache
-    command: ["bash", "/app/start.sh"]
+    command: [ "bash", "/app/start.sh"]
 
 volumes:
   mongodb_data:

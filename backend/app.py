@@ -23,13 +23,26 @@ fs = gridfs.GridFS(db)
 # Initialize vector fingerprinter (optional - will gracefully fail if Milvus not available)
 try:
     from vector_fingerprint import VectorFingerprinter
-    vector_fp = VectorFingerprinter(milvus_host=os.getenv('MILVUS_HOST', 'milvus'))
-    VECTOR_ENABLED = True
-    print("Vector fingerprinting enabled with CLAP + Milvus")
+    print("Vector fingerprinting module available, will initialize on first use")
+    vector_fp = None
+    VECTOR_ENABLED = False  # Will be enabled on first use
+    _vector_fp_module = VectorFingerprinter
 except Exception as e:
     vector_fp = None
+    _vector_fp_module = None
     VECTOR_ENABLED = False
     print(f"Vector fingerprinting disabled: {e}")
+
+def get_vector_fingerprinter():
+    global vector_fp, VECTOR_ENABLED, _vector_fp_module
+    if vector_fp is None and _vector_fp_module is not None:
+        try:
+            vector_fp = _vector_fp_module(milvus_host=os.getenv('MILVUS_HOST', 'milvus'))
+            VECTOR_ENABLED = True
+            print("Vector fingerprinting enabled with CLAP + Milvus")
+        except Exception as e:
+            print(f"Failed to initialize vector fingerprinting: {e}")
+    return vector_fp
 
 @app.route('/')
 def index():
@@ -242,7 +255,8 @@ def get_stats():
 @app.route('/api/fingerprint/vector/generate', methods=['POST'])
 def generate_vector_fingerprint():
     """Generate vector-based fingerprint using CLAP embeddings"""
-    if not VECTOR_ENABLED:
+    vfp = get_vector_fingerprinter()
+    if vfp is None:
         return jsonify({'success': False, 'error': 'Vector fingerprinting not available'}), 503
 
     try:
@@ -257,10 +271,10 @@ def generate_vector_fingerprint():
 
         # Load audio using librosa
         import io
-        audio_data, sr = librosa.load(io.BytesIO(audio_bytes), sr=vector_fp.sample_rate, mono=True)
+        audio_data, sr = librosa.load(io.BytesIO(audio_bytes), sr=vfp.sample_rate, mono=True)
 
         # Generate embeddings for segments
-        segments = vector_fp.generate_segment_embeddings(audio_data, segment_duration=10.0)
+        segments = vfp.generate_segment_embeddings(audio_data, segment_duration=10.0)
 
         return jsonify({
             'success': True,
@@ -275,7 +289,8 @@ def generate_vector_fingerprint():
 @app.route('/api/fingerprint/vector/store', methods=['POST'])
 def store_vector_fingerprint():
     """Store vector embeddings in Milvus"""
-    if not VECTOR_ENABLED:
+    vfp = get_vector_fingerprinter()
+    if vfp is None:
         return jsonify({'success': False, 'error': 'Vector fingerprinting not available'}), 503
 
     try:
@@ -287,7 +302,7 @@ def store_vector_fingerprint():
             return jsonify({'success': False, 'error': 'Missing required data'}), 400
 
         # Store in Milvus
-        success = vector_fp.store_embeddings(fingerprint_id, vector_segments)
+        success = vfp.store_embeddings(fingerprint_id, vector_segments)
 
         if success:
             return jsonify({'success': True, 'message': f'Stored {len(vector_segments)} vector embeddings'})
@@ -300,7 +315,8 @@ def store_vector_fingerprint():
 @app.route('/api/fingerprint/vector/verify', methods=['POST'])
 def verify_vector_fingerprint():
     """Verify audio using vector similarity search"""
-    if not VECTOR_ENABLED:
+    vfp = get_vector_fingerprinter()
+    if vfp is None:
         return jsonify({'success': False, 'error': 'Vector fingerprinting not available'}), 503
 
     try:
@@ -312,7 +328,7 @@ def verify_vector_fingerprint():
             return jsonify({'success': False, 'error': 'Missing required data'}), 400
 
         # Verify using vector similarity
-        result = vector_fp.verify_audio(query_segments, stored_fingerprint_id)
+        result = vfp.verify_audio(query_segments, stored_fingerprint_id)
 
         return jsonify({
             'success': True,

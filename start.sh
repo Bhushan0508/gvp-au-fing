@@ -7,4 +7,4 @@ python -c "import torchvision" 2>/dev/null || pip install torchvision==0.15.2
 pip install --upgrade marshmallow
 
 # Start the Flask app
-python backend/app.py
+python -u backend/app.py
